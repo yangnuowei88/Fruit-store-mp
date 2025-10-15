@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "墨铭水果园",
+  "navigationBarTitleText": "重庆邮电大学水果园",
   "usingComponents": {
     "mySearch":"/components/search/search",
     "swiper": "/components/swiper/swiper"

@@ -1,3 +1,52 @@
+<!-- 蓝牙打印机控制面板 -->
+<view class='bluetooth-panel'>
+  <view class='bluetooth-status'>
+    <text class='status-text'>打印机状态：</text>
+    <text class='status-value {{connectedDevice ? "connected" : "disconnected"}}'>
+      {{connectedDevice ? connectedDevice.name || '已连接' : '未连接'}}
+    </text>
+  </view>
+  <view class='bluetooth-controls'>
+    <button class='control-btn search-btn' bindtap='searchBluetoothDevices' disabled='{{isConnecting}}'>
+      {{isConnecting ? '连接中...' : '搜索打印机'}}
+    </button>
+    <button class='control-btn disconnect-btn' bindtap='disconnectBluetooth' disabled='{{!connectedDevice}}'>
+      断开连接
+    </button>
+  </view>
+</view>
+
+<!-- 蓝牙设备选择弹窗 -->
+<view class='bluetooth-modal' wx:if='{{showBluetoothModal}}'>
+  <view class='modal-mask' bindtap='toggleBluetoothModal'></view>
+  <view class='modal-content'>
+    <view class='modal-header'>
+      <text class='modal-title'>选择打印机</text>
+      <text class='modal-close' bindtap='toggleBluetoothModal'>×</text>
+    </view>
+    <view class='modal-body'>
+      <view wx:if='{{bluetoothDevices.length === 0}}' class='no-devices'>
+        <text>未发现打印机设备</text>
+        <text class='hint'>请确保打印机已开启并处于可连接状态</text>
+      </view>
+      <view wx:else class='device-list'>
+        <view wx:for='{{bluetoothDevices}}' wx:key='deviceId' class='device-item' 
+              bindtap='connectBluetoothDevice' data-device-id='{{item.deviceId}}'>
+          <view class='device-info'>
+            <text class='device-name'>{{item.name || '未知设备'}}</text>
+            <text class='device-id'>{{item.deviceId}}</text>
+          </view>
+          <text class='device-signal'>{{item.RSSI}}dBm</text>
+        </view>
+      </view>
+    </view>
+    <view class='modal-footer'>
+      <button class='modal-btn cancel-btn' bindtap='toggleBluetoothModal'>取消</button>
+      <button class='modal-btn search-btn' bindtap='searchBluetoothDevices'>重新搜索</button>
+    </view>
+  </view>
+</view>
+
 <view class='tapCard'>
   <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>已支付</view>
   <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已发货</view>

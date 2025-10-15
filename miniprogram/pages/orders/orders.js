@@ -23,20 +23,40 @@ Page({
     wx.cloud.callFunction({
       name: 'getIP'
     }).then(e=>{
-      if(e){
-        let spbill_create_ip = e.result.body.split("query\"\:\"")[1].split("\"\,\"")[0]
-        console.log("IP地址为：" + spbill_create_ip)
+      if(e && e.result && e.result.body){
+        try {
+          // 解析JSON响应获取IP地址
+          let ipData = JSON.parse(e.result.body);
+          let spbill_create_ip = ipData.query || '127.0.0.1'; // 使用query字段，失败时使用默认IP
+          
+          // 验证IP地址格式
+          if (!this.isValidIP(spbill_create_ip)) {
+            spbill_create_ip = '127.0.0.1'; // 使用默认IP
+          }
+          
+          console.log("IP地址为：" + spbill_create_ip)
+          self.setData({
+            spbill_create_ip: spbill_create_ip
+          })
+        } catch (parseError) {
+          console.error('IP解析失败:', parseError);
+          // 使用默认IP地址
+          self.setData({
+            spbill_create_ip: '127.0.0.1'
+          })
+        }
+      } else {
+        // 获取IP失败，使用默认IP
         self.setData({
-          spbill_create_ip: spbill_create_ip
+          spbill_create_ip: '127.0.0.1'
         })
       }
     }).catch(err=>{
-      if (err) {
-        wx.showModal({
-          title: '错误',
-          content: '请您重新下单~',
-        })
-      }
+      console.error('获取IP失败:', err);
+      // 使用默认IP地址
+      self.setData({
+        spbill_create_ip: '127.0.0.1'
+      })
     })
 
     // 获取总价和openid
@@ -48,6 +68,12 @@ Page({
     this.getTotalPrice();
   },
   // onReady↑
+
+  // IP地址格式验证
+  isValidIP(ip) {
+    const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    return ipRegex.test(ip);
+  },
 
   onShow: function () {
     const self = this;
@@ -71,6 +97,8 @@ Page({
     for (let i = 0; i < orders.length; i++) {
       total += orders[i].num * orders[i].price;
     }
+    // 确保最小金额为0.01元（1分钱）
+    total = Math.max(0.01, total);
     this.setData({
       total: total.toFixed(2)
     })
@@ -96,6 +124,12 @@ Page({
   toPay() {
     var that = this
     if (that.data.hasAddress) {
+      
+      // 开发模式下使用模拟支付
+      if (app.globalData.developmentMode) {
+        that.mockPayment()
+        return
+      }
 
       // ------获取prepay_id，所需的签名字符串------
       var p = new Promise((resolve,reject)=>{
@@ -116,7 +150,7 @@ Page({
       + "&spbill_create_ip="+that.data.spbill_create_ip
       + "&time_expire="+app.beforeNowtimeByMin(-15)
       + "&time_start="+app.CurrentTime()
-      + "&total_fee="+parseInt(that.data.total*100)
+      + "&total_fee="+Math.max(1, parseInt(that.data.total*100))
       + "&trade_type=JSAPI";
 
       var stringSignTemp = stringA +"&key="+app.globalData.apikey
@@ -178,13 +212,20 @@ Page({
           '<spbill_create_ip>'+that.data.spbill_create_ip+'</spbill_create_ip>'+
           '<time_expire>'+app.beforeNowtimeByMin(-15)+'</time_expire>'+
           '<time_start>'+app.CurrentTime()+'</time_start>'+
-          '<total_fee>'+parseInt(that.data.total * 100)+'</total_fee>'+
+          '<total_fee>'+Math.max(1, parseInt(that.data.total * 100))+'</total_fee>'+
           '<trade_type>JSAPI</trade_type>'+
           '<sign>'+e[0]+'</sign>'+
           '</xml>'
 
         var tmpOutNum = e[2]
-        // console.log(xmlData)
+        
+        // 验证支付金额
+        var totalFee = Math.max(1, parseInt(that.data.total * 100));
+        console.log('支付金额验证:', {
+          originalTotal: that.data.total,
+          totalFee: totalFee,
+          xmlData: xmlData
+        });
 
         // 获取prepay_id,发送支付请求
         wx.cloud.callFunction({
@@ -194,6 +235,7 @@ Page({
           }
         })
         .then(res=>{
+          console.log('支付云函数返回结果:', res)
           if(res){
             var prepay_id = res.result.body.split("<prepay_id><![CDATA[")[1].split("]]></prepay_id>")[0];
             var timeStamp = Math.round((Date.now() / 1000)).toString()
@@ -241,6 +283,7 @@ Page({
         })
         .catch(err=>{
           if(err){
+            console.log(err)
             wx.showModal({
               title: '错误',
               content: '请重新点击支付~',
@@ -263,7 +306,69 @@ Page({
   },
 
 
-  // 支付后的订单信息
+  // 支付后的订单信息},
+
+  // 模拟支付功能（仅用于开发测试）
+  mockPayment() {
+    var that = this
+    
+    // 生成模拟订单号
+    var out_trade_no = (new Date().getTime() + app.RndNum(6)).toString()
+    
+    // 生成订单信息
+    let tmp = that.data.address
+    tmp['schoolName'] = app.globalData.school_Arr[that.data.address['schoolName']]
+    tmp['addressItem'] = app.globalData.address_Arr[that.data.address['addressItem']]
+    tmp['orderTime'] = app.CurrentTime_show()
+    tmp['orderSuccess'] = true
+    tmp['payTime'] = app.CurrentTime_show()
+    tmp['paySuccess'] = true  // 模拟支付成功
+    tmp['sending'] = false
+    tmp['finished'] = false
+    tmp['orderStatus'] = '待发货'  // 设置订单状态
+
+    const order_master = tmp
+
+    var tmpList = []
+    that.data.orders.forEach((val,idx,obj)=>{
+      tmpList.push({
+        name: val.name,
+        num: val.num, 
+        price: val.price,
+        unit: val.unit,
+        imgUrl: val.imgUrl
+      })
+    })
+    order_master['orderItems'] = tmpList  // 使用orderItems字段名
+    order_master['totalPrice'] = that.data.total  // 使用totalPrice字段名
+    order_master['_openid'] = that.data.openid
+    order_master['out_trade_no'] = out_trade_no
+
+    console.log('模拟支付订单:', order_master)
+
+    // 上传到数据库
+    app.addRowToSet('order_master', order_master, e => {
+      console.log("模拟支付订单已生成：" + e)
+      
+      // 显示支付成功提示
+      wx.showToast({
+        title: '支付成功（模拟）',
+        icon: 'success',
+        duration: 2000
+      })
+      
+      // 清空购物车
+      app.globalData.carts = []
+      
+      // 跳转到个人中心
+      setTimeout(() => {
+        wx.switchTab({
+          url: '../me/me',
+        })
+      }, 2000)
+    })
+  },
+  
   getListAfterPay: function (that) {
     var p = new Promise((resolve, reject) => {
       let theList = []

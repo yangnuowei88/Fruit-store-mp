@@ -1,0 +1,45 @@
+{
+  "示例地址1_宿舍": {
+    "name": "张三",
+    "phone": "13800138000",
+    "schoolName": 0,
+    "addressItem": 0,
+    "apartmentNum": "1号楼",
+    "detail": "101室",
+    "message": "请放在门口，谢谢"
+  },
+  "示例地址2_学院": {
+    "name": "李四",
+    "phone": "13900139000",
+    "schoolName": 1,
+    "addressItem": 1,
+    "apartmentNum": "",
+    "detail": "计算机学院办公室",
+    "message": "工作时间配送"
+  },
+  "示例地址3_图书馆": {
+    "name": "王五",
+    "phone": "13700137000",
+    "schoolName": 0,
+    "addressItem": 2,
+    "apartmentNum": "",
+    "detail": "图书馆前台",
+    "message": "请联系前台代收"
+  },
+  "示例地址4_餐厅": {
+    "name": "赵六",
+    "phone": "13600136000",
+    "schoolName": 1,
+    "addressItem": 3,
+    "apartmentNum": "",
+    "detail": "第二餐厅收银台",
+    "message": "中午12点前配送"
+  },
+  "数据字段说明": {
+    "schoolName": "学校索引: 0=交大, 1=华师大",
+    "addressItem": "地址类型索引: 0=宿舍楼, 1=学院, 2=图书馆, 3=餐厅, 4=教学楼, 5=其他",
+    "apartmentNum": "宿舍楼号(仅宿舍楼类型需要)",
+    "detail": "详细地址",
+    "message": "配送备注"
+  }
+}

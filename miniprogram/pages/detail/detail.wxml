@@ -41,7 +41,8 @@
     <!-- 评论 -->
     <view class="goods-content">
         <view wx:if="{{curIndex === 1}}" class="WxComment">
-              <WxComment tipOne="powered by Voyz_Shen" tipTwo="" submitBtnText="评论" articleID="{{articleID}}" contentLen='1'></WxComment>
+              <!-- <WxComment tipOne="powered by Voyz_Shen" tipTwo="" submitBtnText="评论" articleID="{{articleID}}" contentLen='1'></WxComment> -->
+              <text>评论功能暂未开放</text>
         </view>
 
         <!-- <view wx:if="{{curIndex === 1}}">{{fruitDetail.service}}</view> -->

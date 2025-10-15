@@ -6,21 +6,24 @@ App({
       console.error('请使用 2.2.3 或以上的基础库以使用云能力')
     } else {
       wx.cloud.init({
-        env: 'voyz-cloud-86f82a',
+        env: 'cloud1-0g8wog310bb3f1a1',
         traceUser: true,
       })
     }
 
     this.globalData = {
-      cloudRoot : "clo140d-voyz-cloud-86f82a/",
+      cloudRoot : "cloud://cloud1-0g8wog310bb3f1a1/",
       carts:[],  //购物车
       tmpNum: 0,
       tempFilePaths: "",
       admin:["Mr.Voyz"],
       openId: null,
-      appid: 'wx0dd8c5c9ebe90a78',
-      mch_id: '1519277861',
-      apikey: 'James487493259359826923695832443',
+      // 开发模式配置
+      developmentMode: false,  // 开发阶段设为true，生产环境设为false
+      // 微信支付配置（需要替换为真实配置）
+      appid: 'wx144a19ff0726d2a0',
+      mch_id: '1575701291',
+      apikey: '7868190b6e043039f0067c66f90a8498',
       offLine:false,
       school_Arr: [
         "交大",

@@ -1,2 +1,19 @@
 
 miniprogram/WxComment/
+.history
+
+# Node.js dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Specific paths for this project
+miniprogram/node_modules/
+cloudfunctions/node_modules/
+cloudfunctions/*/node_modules/
+
+# Package lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# */package-lock.json
+# **/package-lock.json
+

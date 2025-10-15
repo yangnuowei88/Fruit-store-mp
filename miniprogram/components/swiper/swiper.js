@@ -1,3 +1,11 @@
+/*
+ * @Author: yangwei yangnuowei@126.com
+ * @Date: 2025-10-14 18:29:45
+ * @LastEditors: yangwei yangnuowei@126.com
+ * @LastEditTime: 2025-10-14 19:44:49
+ * @FilePath: \Fruit-store-mp\miniprogram\components\swiper\swiper.js
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 // components/swiper/swiper.js
 Component({
   /**
@@ -12,8 +20,8 @@ Component({
    */
   data: {
     imgUrls: [
-      'cloud://voyz-cloud-86f82a.140d-voyz-cloud-86f82a/fruitSwiper/swiper1.png',
-      'cloud://voyz-cloud-86f82a.140d-voyz-cloud-86f82a/fruitSwiper/swiper2.png'
+      'cloud://cloud1-0g8wog310bb3f1a1.636c-cloud1-0g8wog310bb3f1a1-1301267872/fruitSwiper/swiper1.png',
+      'cloud://cloud1-0g8wog310bb3f1a1.636c-cloud1-0g8wog310bb3f1a1-1301267872/fruitSwiper/swiper2.png'
       ]
   },
 
