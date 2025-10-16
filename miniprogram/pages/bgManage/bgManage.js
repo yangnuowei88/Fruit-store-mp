@@ -2,17 +2,22 @@ const app = getApp()
 
 Page({
   data: {
-    orderList:{},
-    sendingList:{},
-    finishedList:{},
+    orderList: [],
+    sendingList: [],
+    finishedList: [],
+    displayOrderList: [], // 用于显示的订单列表（原始数据或搜索结果）
     cardNum: 1,
-    // 蓝牙打印机相关
+    // 搜索相关数据
+    searchPhone: '',
+    searchResult: [],
+    showNoResult: false,
+    // 蓝牙打印机相关数据
     bluetoothEnabled: false,
     bluetoothDevices: [],
     connectedDevice: null,
     isConnecting: false,
     showBluetoothModal: false,
-    // 新订单提醒
+    // 新订单提醒相关数据
     lastOrderCount: 0,
     orderCheckInterval: null,
   },
@@ -32,12 +37,16 @@ Page({
     that.setData({
       cardNum: 1
     })
+    // 切换到其他标签页时清空搜索状态
+    this.clearSearchState()
   },
   tapTo2: function () { //修改和删除
     var that = this
     that.setData({
       cardNum: 2
     })
+    // 切换到其他标签页时清空搜索状态
+    this.clearSearchState()
     // console.log(getCurrentPages())
   },
   tapTo3: function () {
@@ -45,45 +54,175 @@ Page({
     that.setData({
       cardNum: 3
     })
+    // 切换到其他标签页时清空搜索状态
+    this.clearSearchState()
   },
   tapTo4: function () {
     var that = this
     that.setData({
       cardNum: 4
     })
+    // 在所有订单标签页，根据搜索状态更新显示
+    this.updateDisplayList()
+  },
+
+  // 更新显示列表（根据是否有搜索结果）
+  updateDisplayList: function() {
+    const displayList = this.data.searchResult.length > 0 ? this.data.searchResult : this.data.orderList
+    this.setData({
+      displayOrderList: displayList
+    })
+  },
+
+  // 清空搜索状态（用于切换标签页时）
+  clearSearchState: function() {
+    this.setData({
+      searchPhone: '',
+      searchResult: [],
+      displayOrderList: this.data.orderList,
+      showNoResult: false
+    })
+  },
+
+  // ----------------------!!!  搜索功能  !!!----------------------
+  // 搜索输入框输入事件
+  onSearchInput: function(e) {
+    this.setData({
+      searchPhone: e.detail.value,
+      showNoResult: false
+    })
+  },
+
+  // 根据手机号后四位搜索订单
+  searchOrderByPhone: function() {
+    const searchPhone = this.data.searchPhone.trim()
+    
+    if (!searchPhone) {
+      wx.showToast({
+        title: '请输入手机号后四位',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 验证输入格式（4位数字）
+    if (!/^\d{4}$/.test(searchPhone)) {
+      wx.showToast({
+        title: '请输入4位数字',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 在订单列表中搜索匹配的手机号后四位
+    const searchResult = this.data.orderList.filter(order => {
+      return order.phone && order.phone.endsWith(searchPhone)
+    })
+
+    this.setData({
+      searchResult: searchResult,
+      displayOrderList: searchResult,
+      showNoResult: searchResult.length === 0
+    })
+
+    if (searchResult.length === 0) {
+      wx.showToast({
+        title: '未找到相关订单',
+        icon: 'none'
+      })
+    } else {
+      wx.showToast({
+        title: `找到${searchResult.length}条订单`,
+        icon: 'success'
+      })
+    }
+  },
+
+  // 清空搜索
+  clearSearch: function() {
+    this.setData({
+      searchPhone: '',
+      searchResult: [],
+      displayOrderList: this.data.orderList,
+      showNoResult: false
+    })
+    wx.showToast({
+      title: '已清空搜索',
+      icon: 'success'
+    })
   },
 
   // ----------------------!!!  订单管理  !!!----------------------
   // 已支付-发货
   boxFruit: function(e) {
+    console.log('boxFruit函数被调用了！');
+    console.log('事件对象:', e);
+    
     var that = this
     const orderId = e.currentTarget.id;
-    const orderData = that.data.orderList.find(order => order._id === orderId);
+    console.log('点击发货，订单ID:', orderId);
+    console.log('当前orderList:', that.data.orderList);
     
-    // 询问是否打印订单
+    // 如果没有订单ID，直接返回
+    if (!orderId) {
+      console.error('没有获取到订单ID');
+      wx.showToast({
+        title: '获取订单信息失败',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    // 确保orderList是数组
+    const orderList = Array.isArray(that.data.orderList) ? that.data.orderList : [];
+    const orderData = orderList.find(order => order._id === orderId);
+    
+    console.log('找到的订单数据:', orderData);
+    
+    // 先显示一个toast确认代码执行到这里
+    wx.showToast({
+      title: '找到订单，准备发货',
+      icon: 'success',
+      duration: 1000
+    });
+    
+    // 延迟一下再显示弹窗，避免冲突
+    setTimeout(() => {
+      // 询问是否打印订单
+      console.log('准备显示弹窗...');
     wx.showModal({
-      title: '发货确认',
-      content: '是否需要打印订单？',
-      confirmText: '打印并发货',
-      cancelText: '直接发货',
+        title: '发货确认',
+        content: '是否需要打印订单？',
+        confirmText: '打印发货',
+        cancelText: '直接发货',
       success: (res) => {
+        console.log('弹窗回调成功，用户选择:', res);
         if (res.confirm && orderData) {
           // 打印订单
+          console.log('用户选择打印订单');
           that.printOrder(orderData);
+        } else {
+          console.log('用户选择直接发货');
         }
         
         // 更新订单状态为已发货
+        console.log('开始更新订单状态...');
         app.updateInfo('order_master', orderId, {
           sending: true,
           sendingTime: app.CurrentTime_show()
         }, e => {
+          console.log('订单状态更新成功');
           that.getAllList()
           wx.showToast({
             title: '【已发货】',
           })
         })
-      }
-    });
+      },
+      fail: (err) => {
+         console.error('弹窗显示失败:', err);
+       }
+     });
+    }, 1200); // 等待toast显示完毕后再显示弹窗
   },
 
   // 已发货-送达
@@ -449,7 +588,8 @@ Page({
     var that = this
     app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
       that.setData({
-        orderList: e.data
+        orderList: e.data,
+        displayOrderList: e.data // 初始显示所有订单
       })
       console.log(e.data)
     })

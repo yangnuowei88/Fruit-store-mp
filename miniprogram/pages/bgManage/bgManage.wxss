@@ -196,6 +196,87 @@ Page {background: #FFF5EE}
   color: white;
 }
 
+/* 订单搜索面板样式 */
+.search-panel {
+  background: white;
+  margin: 20rpx;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.search-input {
+  width: 350rpx;
+  height: 70rpx;
+  padding: 0 10rpx;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  background-color: #fafafa;
+  text-align: center;
+  letter-spacing: 4rpx;
+}
+
+.search-input:focus {
+  border-color: #07c160;
+  background-color: white;
+}
+
+.search-panel .search-btn {
+  width: 120rpx;
+  height: 70rpx;
+  line-height: 70rpx;
+  font-size: 26rpx;
+  border-radius: 8rpx;
+  background-color: #07c160;
+  color: white;
+  text-align: center;
+}
+
+.clear-btn {
+  width: 120rpx;
+  height: 70rpx;
+  line-height: 70rpx;
+  font-size: 26rpx;
+  border-radius: 8rpx;
+  background-color: #fa5151;
+  color: white;
+  text-align: center;
+}
+
+.search-result {
+  margin-top: 20rpx;
+  padding: 15rpx 20rpx;
+  background-color: #f0f9ff;
+  border-radius: 8rpx;
+  border-left: 4rpx solid #07c160;
+}
+
+.result-text {
+  font-size: 26rpx;
+  color: #07c160;
+  font-weight: bold;
+}
+
+.no-result {
+  margin-top: 20rpx;
+  padding: 15rpx 20rpx;
+  background-color: #fff5f5;
+  border-radius: 8rpx;
+  border-left: 4rpx solid #fa5151;
+  text-align: center;
+}
+
+.no-result-text {
+  font-size: 26rpx;
+  color: #fa5151;
+}
 
 /* 选项卡 */
 .tapCard {display: flex;flex-direction: row;justify-content: start;height: 50rpx;margin: 0 10rpx;}

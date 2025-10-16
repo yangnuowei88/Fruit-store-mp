@@ -56,7 +56,7 @@
 <!-- 底部 -->
 <view class='homeBottom'>
   <view class='bottomLine'></view>
-  <view class='bottomWord'>coding by Voyz_Shen</view>
+  <view class='bottomWord'>自有平台，物美价廉</view>
   <view class='bottomLine'></view>
 </view>
 

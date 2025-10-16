@@ -47,6 +47,26 @@
   </view>
 </view>
 
+<!-- 订单搜索面板 -->
+<view class='search-panel' wx:if="{{cardNum === 4}}">
+  <view class='search-container'>
+    <input class='search-input' 
+           placeholder='输手机号后四位搜索订单' 
+           value='{{searchPhone}}' 
+           bindinput='onSearchInput'
+           type='number'
+           maxlength='4' />
+    <button class='search-btn' bindtap='searchOrderByPhone'>搜索</button>
+    <button class='clear-btn' bindtap='clearSearch' wx:if='{{searchPhone}}'>清空</button>
+  </view>
+  <view class='search-result' wx:if='{{searchResult.length > 0}}'>
+    <text class='result-text'>找到 {{searchResult.length}} 条订单</text>
+  </view>
+  <view class='no-result' wx:if='{{showNoResult}}'>
+    <text class='no-result-text'>未找到相关订单</text>
+  </view>
+</view>
+
 <view class='tapCard'>
   <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>已支付</view>
   <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已发货</view>
@@ -61,7 +81,7 @@
 
   <view class="weui-cells weui-cells_after-title">
 
-    <view wx:for="{{orderList}}" wx:key="idx" class='listItem' wx:if="{{item.paySuccess && !item.sending}}">
+    <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.paySuccess && !item.sending}}">
       <view class='f_column'>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
@@ -89,7 +109,7 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{orderList}}" wx:key="pay" class='listItem' wx:if="{{item.sending && !item.finished}}">
+    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.sending && !item.finished}}">
       <view class='f_column'>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
@@ -116,7 +136,7 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{orderList}}" wx:key="pay" class='listItem' wx:if="{{item.finished}}">
+    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.finished}}">
       <view class='f_column'>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
@@ -139,7 +159,7 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{orderList}}" wx:key="pay" class='listItem'>
+    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem'>
       <view class='f_column'>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
@@ -150,8 +170,8 @@
         <view>备注：{{item.message}}</view>
         <view>下单时间：{{item.orderTime}}</view>
         <view>送达时间：{{item.finishedTime}}</view>
-        <view wx:if="{{item.paySuccess}}">状态：未支付</view>
-        <view wx:if="{{item.finished}}">状态：已送达</view>
+        <view wx:if="{{item.paySuccess}}">支付状态：已支付</view>
+        <view wx:if="{{item.finished}}">送达状态：已送达</view>
         <view wx:if="{{item.paySuccess && !item.sending}}">状态：已支付/待发货</view>
         <view wx:if="{{item.sending && !item.finished}}">状态：已发货</view>
       </view>

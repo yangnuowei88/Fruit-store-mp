@@ -4,9 +4,10 @@
   <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>添加水果</view>
   <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>上架修改</view>
   <view class="deliver {{cardNum === 3 ? 'tapOn':'tapOff'}} " bindtap='tapTo3'>送货管理</view>
+  <view class="statistics {{cardNum === 4 ? 'tapOn':'tapOff'}} " bindtap='tapTo4'>营业统计</view>
 </view>
 
-<!-- 添加水果 -->
+<!-- 送货管理 -->
 <view class='addFruit' wx:if="{{cardNum === 3}}">
   <button bindtap='offLine'>打烊？</button>
 </view>
@@ -38,7 +39,6 @@
           <!-- <view class='changeBtn'>修改</view> -->
           <view class='upBtn' bindtap='upToLine' id="{{item._id}}">上架</view>
         </view>
-        
       </view>
     </view>
 
@@ -181,6 +181,75 @@
 
 <!-- end -->
 </view>
+</view>
+
+<!-----------------------!!!! 营业统计 !!!!---------------------------->
+<view class='statistics-content' wx:if="{{cardNum === 4}}">
+  
+  <!-- 今日数据 -->
+  <view class="stats-section">
+    <view class="section-title">📊 今日数据</view>
+    <view class="stats-cards">
+      <view class="stat-card">
+        <view class="stat-value">¥{{todayStats.revenue || '0.00'}}</view>
+        <view class="stat-label">今日营业额</view>
+      </view>
+      <view class="stat-card">
+        <view class="stat-value">{{todayStats.orderCount || 0}}</view>
+        <view class="stat-label">今日订单数</view>
+      </view>
+      <view class="stat-card">
+        <view class="stat-value">{{todayStats.completedCount || 0}}</view>
+        <view class="stat-label">今日完成订单</view>
+      </view>
+      <view class="stat-card">
+        <view class="stat-value">¥{{todayStats.avgAmount || '0.00'}}</view>
+        <view class="stat-label">平均订单金额</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 趋势统计 -->
+  <view class="stats-section">
+    <view class="section-title">📈 趋势统计</view>
+    <view class="stats-cards">
+      <view class="stat-card large">
+        <view class="stat-value">¥{{weekStats.revenue || '0.00'}}</view>
+        <view class="stat-label">本周营业额</view>
+        <view class="stat-sub">{{weekStats.orderCount || 0}} 笔订单</view>
+      </view>
+      <view class="stat-card large">
+        <view class="stat-value">¥{{monthStats.revenue || '0.00'}}</view>
+        <view class="stat-label">本月营业额</view>
+        <view class="stat-sub">{{monthStats.orderCount || 0}} 笔订单</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 订单状态分布 -->
+  <view class="stats-section">
+    <view class="section-title">📋 订单状态</view>
+    <view class="status-stats">
+      <view class="status-item">
+        <view class="status-count">{{orderStatus.pending || 0}}</view>
+        <view class="status-label">待发货</view>
+      </view>
+      <view class="status-item">
+        <view class="status-count">{{orderStatus.shipping || 0}}</view>
+        <view class="status-label">配送中</view>
+      </view>
+      <view class="status-item">
+        <view class="status-count">{{orderStatus.completed || 0}}</view>
+        <view class="status-label">已完成</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 刷新按钮 -->
+  <view class="weui-btn-area">
+    <button class="weui-btn" type="default" bindtap="refreshStats">刷新统计数据</button>
+  </view>
+
 </view>
 
 </view>

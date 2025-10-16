@@ -3,7 +3,7 @@ Page {background: #FFF5EE}
 
 /* 选项卡 */
 .tapCard {display: flex;flex-direction: row;justify-content: start;height: 50rpx;margin: 0 10rpx;}
-.tapCard view {width: 20%;height: 100%;text-align: center;font-size: 26rpx;line-height: 50rpx;border-radius: 10rpx 10rpx 0 0;margin: 0 3rpx;}
+.tapCard view {width: 25%;height: 100%;text-align: center;font-size: 24rpx;line-height: 50rpx;border-radius: 10rpx 10rpx 0 0;margin: 0 2rpx;}
 .tapOn {background-color: rgb(255, 140, 58);color: rgb(255, 255, 255)}
 .tapOff {background-color: rgb(255, 205, 169);color: white}
 
@@ -1262,5 +1262,122 @@ icon {
   line-height: 28px;
   color: #09bb07;
   white-space: nowrap;
+}
+
+/* ----------------------!!!  营业统计样式  !!!---------------------- */
+
+/* 统计页面容器 */
+.statistics-content {
+  padding: 20rpx;
+  background: #FFF5EE;
+  min-height: 100vh;
+}
+
+/* 统计区块 */
+.stats-section {
+  margin-bottom: 30rpx;
+  background: white;
+  border-radius: 15rpx;
+  padding: 25rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+}
+
+/* 区块标题 */
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+
+/* 统计卡片容器 */
+.stats-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+/* 统计卡片 */
+.stat-card {
+  width: 48%;
+  background: linear-gradient(135deg, #ff8c3a, #ffcd69);
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 15rpx;
+  text-align: center;
+  color: white;
+  box-shadow: 0 4rpx 8rpx rgba(255, 140, 58, 0.3);
+}
+
+/* 大卡片（占满宽度） */
+.stat-card.large {
+  width: 100%;
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  box-shadow: 0 4rpx 8rpx rgba(79, 172, 254, 0.3);
+}
+
+/* 统计数值 */
+.stat-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+/* 统计标签 */
+.stat-label {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+/* 统计子标签 */
+.stat-sub {
+  font-size: 22rpx;
+  opacity: 0.8;
+  margin-top: 5rpx;
+}
+
+/* 订单状态统计 */
+.status-stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+/* 状态项 */
+.status-item {
+  text-align: center;
+  flex: 1;
+}
+
+/* 状态数量 */
+.status-count {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #ff8c3a;
+  margin-bottom: 8rpx;
+}
+
+/* 状态标签 */
+.status-label {
+  font-size: 26rpx;
+  color: #666;
+}
+
+/* 第4个标签页样式 */
+.statistics {
+  background-color: rgb(255, 140, 58);
+  color: white;
+}
+
+/* 响应式调整 */
+@media (max-width: 400px) {
+  .stat-card {
+    width: 100%;
+  }
+  
+  .stats-cards {
+    flex-direction: column;
+  }
 }
 

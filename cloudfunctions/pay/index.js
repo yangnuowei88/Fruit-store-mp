@@ -1,3 +1,11 @@
+/*
+ * @Author: yangwei yangnuowei@126.com
+ * @Date: 2025-10-14 18:29:44
+ * @LastEditors: yangwei yangnuowei@126.com
+ * @LastEditTime: 2025-10-16 14:56:18
+ * @FilePath: \Fruit-store-mp\cloudfunctions\pay\index.js
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 // 云函数入口文件
 const cloud = require('wx-server-sdk')
 const request = require('request')
