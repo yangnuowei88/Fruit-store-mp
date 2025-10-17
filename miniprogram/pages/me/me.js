@@ -81,14 +81,11 @@ Page({
         app.getInfoWhere('order_master',{
           openid: openid
         },e=>{
-          console.log(e.data)
-          var tmp = []
-          var len = e.data.length
-          for (var i = 0; i < len;i++){
-            tmp.push(e.data.pop())
-          }
+          console.log('查询到的订单数据:', e.data)
+          // 直接使用查询结果，按时间倒序排列（最新的在前面）
+          var orders = e.data.reverse()
           that.setData({
-            orders: tmp
+            orders: orders
           })
         })
       }
@@ -106,6 +103,12 @@ Page({
   goToBgManage: function () {
     wx.navigateTo({
       url: '/pages/bgManage/bgManage',
+    })
+  },
+
+  goToRiderManage: function () {
+    wx.navigateTo({
+      url: '/pages/riderManage/riderManage',
     })
   }
 

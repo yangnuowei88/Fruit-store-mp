@@ -9,7 +9,8 @@
     "pages/detail/detail",
     "pages/pay/pay",
     "pages/address/address",
-    "pages/orders/orders"
+    "pages/orders/orders",
+    "pages/riderManage/riderManage"
   ],
   "window": {
     "backgroundColor": "#F0F0F0",

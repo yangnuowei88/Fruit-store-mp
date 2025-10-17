@@ -7,19 +7,23 @@ Page({
     finishedList: [],
     displayOrderList: [], // 用于显示的订单列表（原始数据或搜索结果）
     cardNum: 1,
-    // 搜索相关数据
+    // 搜索相关
     searchPhone: '',
     searchResult: [],
     showNoResult: false,
-    // 蓝牙打印机相关数据
+    // 蓝牙打印机相关
     bluetoothEnabled: false,
     bluetoothDevices: [],
     connectedDevice: null,
     isConnecting: false,
     showBluetoothModal: false,
-    // 新订单提醒相关数据
+    // 新订单提醒相关
     lastOrderCount: 0,
     orderCheckInterval: null,
+    // 自动发货相关
+    autoShippingEnabled: true,  // 是否启用自动发货
+    autoShippingInterval: null, // 自动发货检查定时器
+    autoPrintEnabled: true,     // 是否启用自动打印
   },
 
   /**
@@ -177,7 +181,33 @@ Page({
     const orderList = Array.isArray(that.data.orderList) ? that.data.orderList : [];
     const orderData = orderList.find(order => order._id === orderId);
     
+    if (!orderData) {
+      console.error('未找到订单数据');
+      wx.showToast({
+        title: '订单不存在',
+        icon: 'none'
+      });
+      return;
+    }
+    
     console.log('找到的订单数据:', orderData);
+    
+    // 检查订单是否已经打印过
+    if (orderData.printed === true) {
+      console.log('订单已打印过，直接发货');
+      wx.showModal({
+        title: '发货确认',
+        content: '此订单已打印过，是否直接发货？',
+        confirmText: '确认发货',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            that.updateOrderToShipping(orderId);
+          }
+        }
+      });
+      return;
+    }
     
     // 先显示一个toast确认代码执行到这里
     wx.showToast({
@@ -190,38 +220,26 @@ Page({
     setTimeout(() => {
       // 询问是否打印订单
       console.log('准备显示弹窗...');
-    wx.showModal({
+      wx.showModal({
         title: '发货确认',
         content: '是否需要打印订单？',
         confirmText: '打印发货',
         cancelText: '直接发货',
-      success: (res) => {
-        console.log('弹窗回调成功，用户选择:', res);
-        if (res.confirm && orderData) {
-          // 打印订单
-          console.log('用户选择打印订单');
-          that.printOrder(orderData);
-        } else {
-          console.log('用户选择直接发货');
+        success: (res) => {
+          console.log('弹窗回调成功，用户选择:', res);
+          if (res.confirm && orderData) {
+            // 打印订单
+            console.log('用户选择打印订单');
+            that.printOrderWithStatus(orderData);
+          } else {
+            console.log('用户选择直接发货');
+            that.updateOrderToShipping(orderId);
+          }
+        },
+        fail: (err) => {
+          console.error('弹窗显示失败:', err);
         }
-        
-        // 更新订单状态为已发货
-        console.log('开始更新订单状态...');
-        app.updateInfo('order_master', orderId, {
-          sending: true,
-          sendingTime: app.CurrentTime_show()
-        }, e => {
-          console.log('订单状态更新成功');
-          that.getAllList()
-          wx.showToast({
-            title: '【已发货】',
-          })
-        })
-      },
-      fail: (err) => {
-         console.error('弹窗显示失败:', err);
-       }
-     });
+      });
     }, 1200); // 等待toast显示完毕后再显示弹窗
   },
 
@@ -420,7 +438,7 @@ Page({
     }
   },
 
-  // 打印订单
+  // 打印订单（原有函数，保持兼容性）
   printOrder(orderData) {
     const characteristic = wx.getStorageSync('printerCharacteristic');
     if (!characteristic) {
@@ -454,6 +472,57 @@ Page({
           title: '打印失败',
           icon: 'none'
         });
+      }
+    });
+  },
+
+  // 手动打印订单并记录状态
+  printOrderWithStatus(orderData) {
+    const characteristic = wx.getStorageSync('printerCharacteristic');
+    if (!characteristic) {
+      wx.showToast({
+        title: '请先连接打印机',
+        icon: 'none'
+      });
+      // 打印机未连接时直接发货
+      this.updateOrderToShipping(orderData._id);
+      return;
+    }
+
+    // 格式化打印内容
+    const printContent = this.formatOrderForPrint(orderData);
+    const buffer = this.stringToArrayBuffer(printContent);
+
+    wx.writeBLECharacteristicValue({
+      deviceId: characteristic.deviceId,
+      serviceId: characteristic.serviceId,
+      characteristicId: characteristic.characteristicId,
+      value: buffer,
+      success: () => {
+        console.log(`✅ 手动打印订单 ${orderData._id} 成功`);
+        wx.showToast({
+          title: '打印成功',
+          icon: 'success'
+        });
+        
+        // 更新订单打印状态
+        app.updateInfo('order_master', orderData._id, {
+          printed: true,
+          printTime: app.CurrentTime_show()
+        }, () => {
+          console.log(`📝 订单 ${orderData._id} 打印状态已更新`);
+          // 打印成功后自动发货
+          this.updateOrderToShipping(orderData._id);
+        });
+      },
+      fail: (err) => {
+        console.error(`❌ 手动打印订单 ${orderData._id} 失败:`, err);
+        wx.showToast({
+          title: '打印失败',
+          icon: 'none'
+        });
+        // 打印失败也要发货
+        this.updateOrderToShipping(orderData._id);
       }
     });
   },
@@ -496,7 +565,46 @@ Page({
   toggleBluetoothModal() {
     this.setData({
       showBluetoothModal: !this.data.showBluetoothModal
-    });
+    })
+  },
+
+  // 切换自动发货开关
+  toggleAutoShipping(e) {
+    const enabled = e.detail.value
+    console.log('切换自动发货状态:', enabled)
+    
+    this.setData({
+      autoShippingEnabled: enabled
+    })
+
+    if (enabled) {
+      this.startAutoShipping()
+      wx.showToast({
+        title: '自动发货已启用',
+        icon: 'success'
+      })
+    } else {
+      this.stopAutoShipping()
+      wx.showToast({
+        title: '自动发货已禁用',
+        icon: 'none'
+      })
+    }
+  },
+
+  // 切换自动打印开关
+  toggleAutoPrint(e) {
+    const enabled = e.detail.value
+    console.log('切换自动打印状态:', enabled)
+    
+    this.setData({
+      autoPrintEnabled: enabled
+    })
+
+    wx.showToast({
+      title: enabled ? '自动打印已启用' : '自动打印已禁用',
+      icon: enabled ? 'success' : 'none'
+    })
   },
   
   // ----------------------!!!  新订单监听功能  !!!----------------------
@@ -583,6 +691,155 @@ Page({
     }
   },
 
+  // 启动自动发货检查
+  startAutoShipping() {
+    if (!this.data.autoShippingEnabled) {
+      console.log('自动发货功能已禁用')
+      return
+    }
+
+    console.log('启动自动发货检查...')
+    
+    // 立即执行一次检查
+    this.checkPendingOrders()
+    
+    // 每30秒检查一次待发货订单
+    const interval = setInterval(() => {
+      this.checkPendingOrders()
+    }, 30000)
+    
+    this.setData({
+      autoShippingInterval: interval
+    })
+  },
+
+  // 停止自动发货检查
+  stopAutoShipping() {
+    if (this.data.autoShippingInterval) {
+      clearInterval(this.data.autoShippingInterval)
+      this.setData({
+        autoShippingInterval: null
+      })
+      console.log('已停止自动发货检查')
+    }
+  },
+
+  // 检查待发货订单
+  checkPendingOrders() {
+    console.log('🔍 检查待发货订单...')
+    
+    app.getInfoByOrder('order_master', 'orderTime', 'desc', (orders) => {
+      if (!orders || orders.length === 0) {
+        console.log('没有找到订单数据')
+        return
+      }
+
+      // 筛选出已支付但未发货的订单
+      const pendingOrders = orders.filter(order => 
+        order.paySuccess === true && 
+        order.sending !== true &&
+        order.finished !== true
+      )
+
+      console.log(`找到 ${pendingOrders.length} 个待发货订单`)
+
+      if (pendingOrders.length > 0) {
+        pendingOrders.forEach(order => {
+          this.processAutoShipping(order)
+        })
+      }
+    })
+  },
+
+  // 处理单个订单的自动发货
+  processAutoShipping(order) {
+    console.log(`📦 处理订单自动发货: ${order._id}`)
+    
+    // 检查是否已经打印过
+    if (order.printed === true) {
+      console.log(`✅ 订单 ${order._id} 已打印过，执行自动发货`)
+      this.updateOrderToShipping(order._id)
+      return
+    }
+
+    // 如果订单未打印，检查是否可以自动打印
+    if (this.data.autoPrintEnabled && this.isBluetoothConnected()) {
+      console.log(`📄 订单 ${order._id} 未打印，开始自动打印`)
+      this.autoPrintOrder(order)
+    } else {
+      console.log(`⚠️ 订单 ${order._id} 未打印且无法自动打印（打印机未连接或自动打印已禁用），跳过自动发货`)
+      console.log(`💡 提示：该订单需要手动打印后才能发货`)
+      // 不执行自动发货，等待手动处理
+    }
+  },
+
+  // 检查蓝牙打印机是否已连接
+  isBluetoothConnected() {
+    const characteristic = wx.getStorageSync('printerCharacteristic')
+    return characteristic && characteristic.deviceId
+  },
+
+  // 自动打印订单
+  autoPrintOrder(order) {
+    const characteristic = wx.getStorageSync('printerCharacteristic')
+    if (!characteristic) {
+      console.log('打印机未连接，跳过打印')
+      this.updateOrderToShipping(order._id)
+      return
+    }
+
+    // 格式化打印内容
+    const printContent = this.formatOrderForPrint(order)
+    const buffer = this.stringToArrayBuffer(printContent)
+
+    wx.writeBLECharacteristicValue({
+      deviceId: characteristic.deviceId,
+      serviceId: characteristic.serviceId,
+      characteristicId: characteristic.characteristicId,
+      value: buffer,
+      success: () => {
+        console.log(`✅ 订单 ${order._id} 打印成功`)
+        
+        // 更新订单打印状态
+        app.updateInfo('order_master', order._id, {
+          printed: true,
+          printTime: app.CurrentTime_show()
+        }, () => {
+          console.log(`📝 订单 ${order._id} 打印状态已更新`)
+          // 打印成功后自动发货
+          this.updateOrderToShipping(order._id)
+        })
+      },
+      fail: (err) => {
+        console.error(`❌ 订单 ${order._id} 打印失败:`, err)
+        // 打印失败也要发货，避免订单积压
+        this.updateOrderToShipping(order._id)
+      }
+    })
+  },
+
+  // 更新订单为发货状态
+  updateOrderToShipping(orderId) {
+    console.log(`🚚 更新订单 ${orderId} 为发货状态`)
+    
+    app.updateInfo('order_master', orderId, {
+      sending: true,
+      sendingTime: app.CurrentTime_show()
+    }, () => {
+      console.log(`✅ 订单 ${orderId} 已自动发货`)
+      
+      // 刷新订单列表
+      this.getAllList()
+      
+      // 显示提示（可选，避免过于频繁的提示）
+      // wx.showToast({
+      //   title: '订单已自动发货',
+      //   icon: 'success',
+      //   duration: 1000
+      // })
+    })
+  },
+
   // 获取所有订单信息
   getAllList:function(){
     var that = this
@@ -616,21 +873,26 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow: function () {
-
+    this.getAllList()
+    this.getInitialOrderCount()
+    this.startOrderMonitoring()
+    this.startAutoShipping() // 启动自动发货检查
   },
 
   /**
    * 生命周期函数--监听页面隐藏
    */
   onHide: function () {
-
+    this.stopOrderMonitoring()
+    this.stopAutoShipping()
   },
 
   /**
    * 生命周期函数--监听页面卸载
    */
   onUnload: function () {
-    this.stopOrderMonitoring();
+    this.stopOrderMonitoring()
+    this.stopAutoShipping()
   },
 
   /**

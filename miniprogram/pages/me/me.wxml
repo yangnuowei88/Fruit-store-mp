@@ -16,6 +16,12 @@
     <!-- 订单管理 -->
     <view class="bgInfo {{openid}}" bindtap='goToBgManage' hidden="{{!(isAdmin >= 0)}}">订单管理</view>
 
+    <!-- 骑手配送 -->
+    <view class="rider-entry" bindtap='goToRiderManage'>
+        <view class="rider-icon">🚴‍♂️</view>
+        <view class="rider-text">骑手配送</view>
+    </view>
+
     <!-- 地址管理 -->
     <view class="address-box">
         <view class="address-manage">

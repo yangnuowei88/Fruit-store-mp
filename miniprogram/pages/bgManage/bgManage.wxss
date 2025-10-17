@@ -63,6 +63,64 @@ Page {background: #FFF5EE}
   color: #999;
 }
 
+/* 自动发货控制面板样式 */
+.auto-shipping-panel {
+  background: white;
+  margin: 20rpx;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.panel-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  padding: 15rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.setting-item:last-of-type {
+  border-bottom: none;
+}
+
+.setting-label {
+  font-size: 28rpx;
+  color: #333;
+  flex: 1;
+}
+
+.setting-switch {
+  margin: 0 15rpx;
+}
+
+.setting-status {
+  font-size: 24rpx;
+  color: #666;
+  min-width: 80rpx;
+}
+
+.setting-description {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.description-text {
+  display: block;
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.5;
+  margin-bottom: 8rpx;
+}
+
 /* 蓝牙设备选择弹窗样式 */
 .bluetooth-modal {
   position: fixed;

@@ -16,6 +16,26 @@
   </view>
 </view>
 
+<!-- 自动发货控制面板 -->
+<view class='auto-shipping-panel'>
+  <view class='panel-title'>🚚 自动发货设置</view>
+  <view class='setting-item'>
+    <text class='setting-label'>自动发货：</text>
+    <switch class='setting-switch' checked='{{autoShippingEnabled}}' bindchange='toggleAutoShipping'></switch>
+    <text class='setting-status'>{{autoShippingEnabled ? '已启用' : '已禁用'}}</text>
+  </view>
+  <view class='setting-item'>
+    <text class='setting-label'>自动打印：</text>
+    <switch class='setting-switch' checked='{{autoPrintEnabled}}' bindchange='toggleAutoPrint'></switch>
+    <text class='setting-status'>{{autoPrintEnabled ? '已启用' : '已禁用'}}</text>
+  </view>
+  <view class='setting-description'>
+    <text class='description-text'>• 自动发货：已支付订单将自动更新为发货状态</text>
+    <text class='description-text'>• 自动打印：发货前自动打印订单（需连接打印机）</text>
+    <text class='description-text'>• 检查频率：每30秒检查一次待发货订单</text>
+  </view>
+</view>
+
 <!-- 蓝牙设备选择弹窗 -->
 <view class='bluetooth-modal' wx:if='{{showBluetoothModal}}'>
   <view class='modal-mask' bindtap='toggleBluetoothModal'></view>
@@ -69,7 +89,7 @@
 
 <view class='tapCard'>
   <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>已支付</view>
-  <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已发货</view>
+  <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已打单</view>
   <view class="deliver {{cardNum === 3 ? 'tapOn':'tapOff'}} " bindtap='tapTo3'>已送达</view>
   <view class="deliver {{cardNum === 4 ? 'tapOn':'tapOff'}} " bindtap='tapTo4'>所有订单</view>
 </view>

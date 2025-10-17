@@ -121,3 +121,32 @@
     background: #b42f2d;
     color: #fff;
 }
+
+/* 骑手入口按钮样式 */
+.rider-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20rpx 10rpx;
+    padding: 20rpx;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15rpx;
+    box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+}
+
+.rider-entry:active {
+    transform: scale(0.98);
+    box-shadow: 0 2rpx 10rpx rgba(102, 126, 234, 0.2);
+}
+
+.rider-icon {
+    font-size: 40rpx;
+    margin-right: 15rpx;
+}
+
+.rider-text {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: white;
+}
