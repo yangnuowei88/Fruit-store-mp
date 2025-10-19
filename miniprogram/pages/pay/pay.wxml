@@ -1,0 +1,5 @@
+<!--miniprogram/pages/pay/pay.wxml-->
+<view class="WxComment">
+  <!-- <WxComment tipOne="Markdown " tipTwo="will be supported, Powered by yicm." submitBtnText="回复" articleID="{{article_id}}" contentLen='1'></WxComment> -->
+  <text>支付页面评论功能暂未开放</text>
+</view>

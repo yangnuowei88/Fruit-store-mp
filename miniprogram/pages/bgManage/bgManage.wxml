@@ -1,0 +1,204 @@
+<!-- 蓝牙打印机控制面板 -->
+<view class='bluetooth-panel'>
+  <view class='bluetooth-status'>
+    <text class='status-text'>打印机状态：</text>
+    <text class='status-value {{connectedDevice ? "connected" : "disconnected"}}'>
+      {{connectedDevice ? connectedDevice.name || '已连接' : '未连接'}}
+    </text>
+  </view>
+  <view class='bluetooth-controls'>
+    <button class='control-btn search-btn' bindtap='searchBluetoothDevices' disabled='{{isConnecting}}'>
+      {{isConnecting ? '连接中...' : '搜索打印机'}}
+    </button>
+    <button class='control-btn disconnect-btn' bindtap='disconnectBluetooth' disabled='{{!connectedDevice}}'>
+      断开连接
+    </button>
+  </view>
+</view>
+
+<!-- 自动发货控制面板 -->
+<view class='auto-shipping-panel'>
+  <view class='panel-title'>🚚 自动发货设置</view>
+  <view class='setting-item'>
+    <text class='setting-label'>自动发货：</text>
+    <switch class='setting-switch' checked='{{autoShippingEnabled}}' bindchange='toggleAutoShipping'></switch>
+    <text class='setting-status'>{{autoShippingEnabled ? '已启用' : '已禁用'}}</text>
+  </view>
+  <view class='setting-item'>
+    <text class='setting-label'>自动打印：</text>
+    <switch class='setting-switch' checked='{{autoPrintEnabled}}' bindchange='toggleAutoPrint'></switch>
+    <text class='setting-status'>{{autoPrintEnabled ? '已启用' : '已禁用'}}</text>
+  </view>
+  <view class='setting-description'>
+    <text class='description-text'>• 自动发货：已支付订单将自动更新为发货状态</text>
+    <text class='description-text'>• 自动打印：发货前自动打印订单（需连接打印机）</text>
+    <text class='description-text'>• 检查频率：每30秒检查一次待发货订单</text>
+  </view>
+</view>
+
+<!-- 蓝牙设备选择弹窗 -->
+<view class='bluetooth-modal' wx:if='{{showBluetoothModal}}'>
+  <view class='modal-mask' bindtap='toggleBluetoothModal'></view>
+  <view class='modal-content'>
+    <view class='modal-header'>
+      <text class='modal-title'>选择打印机</text>
+      <text class='modal-close' bindtap='toggleBluetoothModal'>×</text>
+    </view>
+    <view class='modal-body'>
+      <view wx:if='{{bluetoothDevices.length === 0}}' class='no-devices'>
+        <text>未发现打印机设备</text>
+        <text class='hint'>请确保打印机已开启并处于可连接状态</text>
+      </view>
+      <view wx:else class='device-list'>
+        <view wx:for='{{bluetoothDevices}}' wx:key='deviceId' class='device-item' 
+              bindtap='connectBluetoothDevice' data-device-id='{{item.deviceId}}'>
+          <view class='device-info'>
+            <text class='device-name'>{{item.name || '未知设备'}}</text>
+            <text class='device-id'>{{item.deviceId}}</text>
+          </view>
+          <text class='device-signal'>{{item.RSSI}}dBm</text>
+        </view>
+      </view>
+    </view>
+    <view class='modal-footer'>
+      <button class='modal-btn cancel-btn' bindtap='toggleBluetoothModal'>取消</button>
+      <button class='modal-btn search-btn' bindtap='searchBluetoothDevices'>重新搜索</button>
+    </view>
+  </view>
+</view>
+
+<!-- 订单搜索面板 -->
+<view class='search-panel' wx:if="{{cardNum === 4}}">
+  <view class='search-container'>
+    <input class='search-input' 
+           placeholder='输手机号后四位搜索订单' 
+           value='{{searchPhone}}' 
+           bindinput='onSearchInput'
+           type='number'
+           maxlength='4' />
+    <button class='search-btn' bindtap='searchOrderByPhone'>搜索</button>
+    <button class='clear-btn' bindtap='clearSearch' wx:if='{{searchPhone}}'>清空</button>
+  </view>
+  <view class='search-result' wx:if='{{searchResult.length > 0}}'>
+    <text class='result-text'>找到 {{searchResult.length}} 条订单</text>
+  </view>
+  <view class='no-result' wx:if='{{showNoResult}}'>
+    <text class='no-result-text'>未找到相关订单</text>
+  </view>
+</view>
+
+<view class='tapCard'>
+  <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>已支付</view>
+  <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已打单</view>
+  <view class="deliver {{cardNum === 3 ? 'tapOn':'tapOff'}} " bindtap='tapTo3'>已送达</view>
+  <view class="deliver {{cardNum === 4 ? 'tapOn':'tapOff'}} " bindtap='tapTo4'>所有订单</view>
+</view>
+
+<!-- 已支付 -->
+<view class='addFruit' wx:if="{{cardNum === 1}}">
+
+<view class='theList'>
+
+  <view class="weui-cells weui-cells_after-title">
+
+    <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.paySuccess && !item.sending}}">
+      <view class='f_column'>
+        <view>{{item.name}}</view>
+        <view>{{item.phone}}</view>
+        <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
+        <view>总价：{{item.total}}</view>
+        <view>订单内容：</view>
+        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+        <view>备注：{{item.message}}</view>
+        <view>下单时间：{{item.orderTime}}</view>
+      </view>
+
+      <view class='Btns'>
+        <view class='downBtn' bindtap='boxFruit' id="{{item._id}}">发货</view>
+      </view>
+    </view>
+
+  </view>
+
+</view>
+</view>
+
+<!-- 已发货 -->
+<view class='addFruit' wx:if="{{cardNum === 2}}">
+
+<view class='theList'>
+
+  <view class="weui-cells weui-cells_after-title">
+    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.sending && !item.finished}}">
+      <view class='f_column'>
+        <view>{{item.name}}</view>
+        <view>{{item.phone}}</view>
+        <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
+        <view>总价：{{item.total}}</view>
+        <view>订单内容：</view>
+        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+        <view>备注：{{item.message}}</view>
+        <view>发货时间：{{item.sendingTime}}</view>
+      </view>
+
+      <view class='Btns'>
+        <view class='upBtn' bindtap='sendingFruit' id="{{item._id}}">送达</view>
+      </view>
+    </view>
+  </view>
+
+</view>
+</view>
+
+<!-- 已送达 -->
+<view class='addFruit' wx:if="{{cardNum === 3}}">
+
+<view class='theList'>
+
+  <view class="weui-cells weui-cells_after-title">
+    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.finished}}">
+      <view class='f_column'>
+        <view>{{item.name}}</view>
+        <view>{{item.phone}}</view>
+        <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
+        <view>总价：{{item.total}}</view>
+        <view>订单内容：</view>
+        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+        <view>备注：{{item.message}}</view>
+        <view>送达时间：{{item.finishedTime}}</view>
+      </view>
+    </view>
+  </view>
+
+</view>
+</view>
+
+<!-- 所有订单 -->
+<view class='addFruit' wx:if="{{cardNum === 4}}">
+
+<view class='theList'>
+
+  <view class="weui-cells weui-cells_after-title">
+    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem'>
+      <view class='f_column'>
+        <view>{{item.name}}</view>
+        <view>{{item.phone}}</view>
+        <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
+        <view>总价：{{item.total}}</view>
+        <view>订单内容：</view>
+        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+        <view>备注：{{item.message}}</view>
+        <view>下单时间：{{item.orderTime}}</view>
+        <view>送达时间：{{item.finishedTime}}</view>
+        <view wx:if="{{item.paySuccess}}">支付状态：已支付</view>
+        <view wx:if="{{item.finished}}">送达状态：已送达</view>
+        <view wx:if="{{item.paySuccess && !item.sending}}">状态：已支付/待发货</view>
+        <view wx:if="{{item.sending && !item.finished}}">状态：已发货</view>
+      </view>
+    </view>
+  </view>
+
+</view>
+</view>
+
+

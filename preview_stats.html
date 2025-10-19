@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>营业统计功能预览</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 375px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        /* 标签页样式 */
+        .tapCard {
+            display: flex;
+            height: 50px;
+            background: #fff;
+        }
+        
+        .tapCard > div {
+            width: 25%;
+            height: 100%;
+            text-align: center;
+            font-size: 14px;
+            line-height: 50px;
+            border-radius: 10px 10px 0 0;
+            margin: 0 2px;
+            cursor: pointer;
+        }
+        
+        .tapOn {
+            background-color: rgb(255, 140, 58);
+            color: white;
+        }
+        
+        .tapOff {
+            background-color: rgb(255, 205, 169);
+            color: white;
+        }
+        
+        /* 统计页面样式 */
+        .statistics-content {
+            padding: 20px;
+            background: #FFF5EE;
+            min-height: 500px;
+        }
+        
+        .stats-section {
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .stats-cards {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        
+        .stat-card {
+            width: 48%;
+            background: linear-gradient(135deg, #ff8c3a, #ffcd69);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 4px 8px rgba(255, 140, 58, 0.3);
+        }
+        
+        .stat-card.large {
+            width: 100%;
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            box-shadow: 0 4px 8px rgba(79, 172, 254, 0.3);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stat-sub {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .status-stats {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        
+        .status-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .status-count {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff8c3a;
+            margin-bottom: 8px;
+        }
+        
+        .status-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .refresh-btn {
+            width: 100%;
+            padding: 15px;
+            background: #ff8c3a;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        .refresh-btn:hover {
+            background: #e67e22;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 标签页 -->
+        <div class="tapCard">
+            <div class="tapOff">添加水果</div>
+            <div class="tapOff">上架修改</div>
+            <div class="tapOff">送货管理</div>
+            <div class="tapOn">营业统计</div>
+        </div>
+        
+        <!-- 营业统计内容 -->
+        <div class="statistics-content">
+            <!-- 今日数据 -->
+            <div class="stats-section">
+                <div class="section-title">📊 今日数据</div>
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-value">¥1,258.50</div>
+                        <div class="stat-label">今日营业额</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">23</div>
+                        <div class="stat-label">今日订单数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">今日完成订单</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">¥54.72</div>
+                        <div class="stat-label">平均订单金额</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 趋势统计 -->
+            <div class="stats-section">
+                <div class="section-title">📈 趋势统计</div>
+                <div class="stats-cards">
+                    <div class="stat-card large">
+                        <div class="stat-value">¥8,456.30</div>
+                        <div class="stat-label">本周营业额</div>
+                        <div class="stat-sub">156 笔订单</div>
+                    </div>
+                    <div class="stat-card large">
+                        <div class="stat-value">¥32,890.75</div>
+                        <div class="stat-label">本月营业额</div>
+                        <div class="stat-sub">642 笔订单</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 订单状态分布 -->
+            <div class="stats-section">
+                <div class="section-title">📋 订单状态</div>
+                <div class="status-stats">
+                    <div class="status-item">
+                        <div class="status-count">5</div>
+                        <div class="status-label">待发货</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-count">12</div>
+                        <div class="status-label">配送中</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-count">18</div>
+                        <div class="status-label">已完成</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 刷新按钮 -->
+            <button class="refresh-btn" onclick="refreshData()">刷新统计数据</button>
+        </div>
+    </div>
+    
+    <script>
+        function refreshData() {
+            alert('统计数据已刷新！');
+        }
+    </script>
+</body>
+</html>
