@@ -1,4 +1,6 @@
 const app = getApp()
+// 引入GBK编码模块，解决蓝牙打印中文乱码问题
+const gbkEncoder = require('../../utils/gbkEncoder.js')
 
 Page({
   data: {
@@ -449,31 +451,114 @@ Page({
       return;
     }
 
-    // 格式化打印内容
-    const printContent = this.formatOrderForPrint(orderData);
-    
-    // 转换为打印机可识别的格式
-    const buffer = this.stringToArrayBuffer(printContent);
+    try {
+      const printContent = this.formatOrderForPrint(orderData);
+      console.log('准备打印内容:', printContent);
+      
+      const buffer = this.stringToArrayBuffer(printContent);
+      console.log('转换后的ArrayBuffer:', buffer);
 
-    wx.writeBLECharacteristicValue({
-      deviceId: characteristic.deviceId,
-      serviceId: characteristic.serviceId,
-      characteristicId: characteristic.characteristicId,
-      value: buffer,
-      success: function() {
+      // 使用分包发送提高兼容性
+      this.sendDataInChunks(buffer, characteristic);
+    } catch (error) {
+      console.error('打印过程出错:', error);
+      wx.showToast({
+        title: '打印出错',
+        icon: 'none'
+      });
+    }
+  },
+
+  // 分包发送数据，提高蓝牙传输兼容性
+  sendDataInChunks(buffer, device, chunkSize = 20) {
+    const data = new Uint8Array(buffer);
+    const totalChunks = Math.ceil(data.length / chunkSize);
+    let currentChunk = 0;
+
+    console.log(`开始分包发送，总长度: ${data.length}, 分包数: ${totalChunks}, 每包大小: ${chunkSize}`);
+
+    const sendNextChunk = () => {
+      if (currentChunk >= totalChunks) {
+        console.log('所有数据包发送完成');
         wx.showToast({
           title: '打印成功',
           icon: 'success'
         });
-      },
-      fail: function(err) {
-        console.log('打印失败', err);
-        wx.showToast({
-          title: '打印失败',
-          icon: 'none'
-        });
+        return;
       }
-    });
+
+      const start = currentChunk * chunkSize;
+      const end = Math.min(start + chunkSize, data.length);
+      const chunk = data.slice(start, end);
+      const chunkBuffer = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
+
+      console.log(`发送第 ${currentChunk + 1}/${totalChunks} 包，大小: ${chunk.length}`);
+
+      wx.writeBLECharacteristicValue({
+        deviceId: device.deviceId,
+        serviceId: device.serviceId,
+        characteristicId: device.characteristicId,
+        value: chunkBuffer,
+        success: (res) => {
+          console.log(`第 ${currentChunk + 1} 包发送成功`);
+          currentChunk++;
+          // 添加小延迟确保数据传输稳定
+          setTimeout(sendNextChunk, 50);
+        },
+        fail: (err) => {
+          console.error(`第 ${currentChunk + 1} 包发送失败:`, err);
+          wx.showToast({
+            title: `打印失败(包${currentChunk + 1})`,
+            icon: 'none'
+          });
+        }
+      });
+    };
+
+    sendNextChunk();
+  },
+
+  // 带回调的分包发送数据
+  sendDataInChunksWithCallback(buffer, device, successCallback, failCallback, chunkSize = 20) {
+    const data = new Uint8Array(buffer);
+    const totalChunks = Math.ceil(data.length / chunkSize);
+    let currentChunk = 0;
+
+    console.log(`开始分包发送，总长度: ${data.length}, 分包数: ${totalChunks}, 每包大小: ${chunkSize}`);
+
+    const sendNextChunk = () => {
+      if (currentChunk >= totalChunks) {
+        console.log('所有数据包发送完成');
+        if (successCallback) successCallback();
+        return;
+      }
+
+      const start = currentChunk * chunkSize;
+      const end = Math.min(start + chunkSize, data.length);
+      const chunk = data.slice(start, end);
+      const chunkBuffer = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
+
+      console.log(`发送第 ${currentChunk + 1}/${totalChunks} 包，大小: ${chunk.length}`);
+
+      wx.writeBLECharacteristicValue({
+        deviceId: device.deviceId,
+        serviceId: device.serviceId,
+        characteristicId: device.characteristicId,
+        value: chunkBuffer,
+        success: (res) => {
+          console.log(`第 ${currentChunk + 1} 包发送成功`);
+          currentChunk++;
+          // 添加小延迟确保数据传输稳定
+          setTimeout(sendNextChunk, 50);
+        },
+        fail: (err) => {
+          console.error(`第 ${currentChunk + 1} 包发送失败:`, err);
+          if (failCallback) failCallback(err);
+        }
+      });
+    };
+
+    sendNextChunk();
   },
 
   // 手动打印订单并记录状态
@@ -493,46 +578,57 @@ Page({
     const printContent = this.formatOrderForPrint(orderData);
     const buffer = this.stringToArrayBuffer(printContent);
 
-    wx.writeBLECharacteristicValue({
-      deviceId: characteristic.deviceId,
-      serviceId: characteristic.serviceId,
-      characteristicId: characteristic.characteristicId,
-      value: buffer,
-      success: () => {
-        console.log(`✅ 手动打印订单 ${orderData._id} 成功`);
-        wx.showToast({
-          title: '打印成功',
-          icon: 'success'
-        });
-        
-        // 更新订单打印状态
-        app.updateInfo('order_master', orderData._id, {
-          printed: true,
-          printTime: app.CurrentTime_show()
-        }, () => {
-          console.log(`📝 订单 ${orderData._id} 打印状态已更新`);
-          // 打印成功后自动发货
-          this.updateOrderToShipping(orderData._id);
-        });
-      },
-      fail: (err) => {
-        console.error(`❌ 手动打印订单 ${orderData._id} 失败:`, err);
-        wx.showToast({
-          title: '打印失败',
-          icon: 'none'
-        });
-        // 打印失败也要发货
+    // 使用分包发送提高兼容性
+    this.sendDataInChunksWithCallback(buffer, characteristic, () => {
+      console.log(`✅ 手动打印订单 ${orderData._id} 成功`);
+      wx.showToast({
+        title: '打印成功',
+        icon: 'success'
+      });
+      
+      // 更新订单打印状态
+      app.updateInfo('order_master', orderData._id, {
+        printed: true,
+        printTime: app.CurrentTime_show()
+      }, () => {
+        console.log(`📝 订单 ${orderData._id} 打印状态已更新`);
+        // 打印成功后自动发货
         this.updateOrderToShipping(orderData._id);
-      }
+      });
+    }, (err) => {
+      console.error(`❌ 手动打印订单 ${orderData._id} 失败:`, err);
+      wx.showToast({
+        title: '打印失败',
+        icon: 'none'
+      });
+      // 打印失败也要发货
+      this.updateOrderToShipping(orderData._id);
     });
   },
 
   // 格式化订单打印内容
   formatOrderForPrint(order) {
+    // 使用iconv-lite处理编码，简化ESC/POS命令
     let content = '';
+    
+    // 1. 初始化打印机
+    content += '\x1B\x40'; // ESC @ - 初始化打印机
+    
+    // 2. 设置居中对齐
+    content += '\x1B\x61\x01'; // ESC a 1 - 居中对齐
+    
+    // 3. 设置字体大小（标题）
+    content += '\x1D\x21\x11'; // GS ! 17 - 倍宽倍高
+    content += '订单详情\n';
+    
+    // 4. 恢复正常字体
+    content += '\x1D\x21\x00'; // GS ! 0 - 正常字体
     content += '================================\n';
-    content += '          订单详情\n';
-    content += '================================\n';
+    
+    // 5. 设置左对齐
+    content += '\x1B\x61\x00'; // ESC a 0 - 左对齐
+    
+    // 客户信息
     content += `客户姓名: ${order.name}\n`;
     content += `联系电话: ${order.phone}\n`;
     content += `收货地址: ${order.schoolName}/${order.addressItem}/${order.detail}\n`;
@@ -546,101 +642,61 @@ Page({
     }
     
     content += '--------------------------------\n';
+    
+    // 6. 设置加粗
+    content += '\x1B\x45\x01'; // ESC E 1 - 加粗开启
     content += `订单总价: ¥${order.total}\n`;
+    content += '\x1B\x45\x00'; // ESC E 0 - 加粗关闭
+    
     content += `备注信息: ${order.message || '无'}\n`;
     content += `下单时间: ${order.orderTime}\n`;
     content += '================================\n';
-    content += '\n\n\n'; // 打印后换行
+    
+    // 7. 走纸并切纸
+    content += '\x1B\x64\x03'; // ESC d 3 - 走纸3行
+    content += '\x1D\x56\x00'; // GS V 0 - 全切纸
     
     return content;
   },
 
-  // 字符串转ArrayBuffer（支持中文打印）
+  // 字符串转ArrayBuffer（使用GBK编码解决中文乱码）
   stringToArrayBuffer(str) {
-    // 为了解决中文乱码问题，使用适合热敏打印机的编码方式
-    console.log('准备转换字符串:', str);
+    console.log('开始转换字符串到ArrayBuffer:', str);
     
-    const bytes = [];
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charAt(i);
-      const code = char.charCodeAt(0);
+    try {
+      // 使用GBK编码模块处理中文字符
+      const buffer = gbkEncoder.stringToArrayBuffer(str);
+      console.log('使用GBK编码成功，字节长度:', buffer.byteLength);
+      return buffer;
+    } catch (error) {
+      console.error('GBK编码失败，使用备用方案:', error);
       
-      // ASCII 字符直接使用
-      if (code < 128) {
-        bytes.push(code);
-      } else {
-        // 中文字符使用 GBK 编码
-        const gbkBytes = this.charToGBK(char);
-        bytes.push(...gbkBytes);
+      // 备用方案：简单的ASCII编码
+      const bytes = [];
+      for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i);
+        if (code < 128) {
+          // ASCII字符直接使用
+          bytes.push(code);
+        } else {
+          // 非ASCII字符使用空格替代，避免乱码
+          bytes.push(32); // 空格的ASCII码
+        }
       }
+      
+      const buffer = new ArrayBuffer(bytes.length);
+      const view = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.length; i++) {
+        view[i] = bytes[i];
+      }
+      
+      console.log('使用ASCII备用方案，字节长度:', bytes.length);
+      return buffer;
     }
-    
-    console.log('转换后的字节数组长度:', bytes.length);
-    return new Uint8Array(bytes).buffer;
   },
 
-  // 中文字符转 GBK 字节的辅助函数
-  charToGBK(char) {
-    // 扩展的常用中文字符 GBK 编码映射
-    const gbkMap = {
-      // 订单相关
-      '订': [0xB6, 0xA9], '单': [0xB5, 0xA5], '详': [0xCF, 0xEA], '情': [0xC7, 0xE9],
-      // 客户信息
-      '客': [0xBF, 0xCD], '户': [0xBB, 0xA7], '姓': [0xD0, 0xD5], '名': [0xC3, 0xFB],
-      '联': [0xC1, 0xAA], '系': [0xCF, 0xB5], '电': [0xB5, 0xE7], '话': [0xBB, 0xB0],
-      // 地址相关
-      '收': [0xCA, 0xD5], '货': [0xBB, 0xF5], '地': [0xB5, 0xD8], '址': [0xD6, 0xB7],
-      // 订单内容
-      '内': [0xC4, 0xDA], '容': [0xC8, 0xDD], '总': [0xD7, 0xDC], '价': [0xBC, 0xDB],
-      '备': [0xB1, 0xB8], '注': [0xD7, 0xA2], '信': [0xD0, 0xC5], '息': [0xCF, 0xA2],
-      // 时间相关
-      '下': [0xCF, 0xC2], '时': [0xCA, 0xB1], '间': [0xBC, 0xE4], '年': [0xC4, 0xEA],
-      '月': [0xD4, 0xC2], '日': [0xC8, 0xD5], '点': [0xB5, 0xE3], '分': [0xB7, 0xD6],
-      // 数量单位
-      '元': [0xD4, 0xAA], '份': [0xB7, 0xDD], '个': [0xB8, 0xF6], '斤': [0xBD, 0xEF],
-      '公': [0xB9, 0xAB], '克': [0xBF, 0xCB], '千': [0xC7, 0xA7], '百': [0xB0, 0xD9],
-      // 常用字
-      '无': [0xCE, 0xDE], '有': [0xD3, 0xD0], '是': [0xCA, 0xC7], '的': [0xB5, 0xC4],
-      '了': [0xC1, 0xCB], '在': [0xD4, 0xDA], '和': [0xBA, 0xCD], '与': [0xD3, 0xEB],
-      '或': [0xBB, 0xF2], '及': [0xBC, 0xB0], '等': [0xB5, 0xC8], '为': [0xCE, 0xAA],
-      // 水果相关
-      '苹': [0xC6, 0xBB], '果': [0xB9, 0xFB], '香': [0xCF, 0xE3], '蕉': [0xBD, 0xB6],
-      '橙': [0xB3, 0xC8], '子': [0xD7, 0xD3], '葡': [0xC6, 0xD1], '萄': [0xCC, 0xD1],
-      '西': [0xCE, 0xF7], '瓜': [0xB9, 0xCF], '草': [0xB2, 0xDD], '莓': [0xDD, 0xAE],
-      '桃': [0xCC, 0xD2], '梨': [0xC0, 0xE6], '柚': [0xD3, 0xD6], '柠': [0xC4, 0xFE],
-      '檬': [0xC3, 0xCA], '芒': [0xC3, 0xA2], '榴': [0xC1, 0xF1], '莲': [0xC1, 0xAB],
-      '火': [0xBB, 0xF0], '龙': [0xC1, 0xFA], '猕': [0xDD, 0xAC], '猴': [0xBA, 0xEF],
-      // 学校相关
-      '学': [0xD1, 0xA7], '校': [0xD0, 0xA3], '院': [0xD4, 0xBA], '系': [0xCF, 0xB5],
-      '楼': [0xC2, 0xA5], '室': [0xCA, 0xD2], '号': [0xBA, 0xC5], '栋': [0xB6, 0xB0],
-      '层': [0xB2, 0xE3], '门': [0xC3, 0xC5], '宿': [0xCB, 0xDE], '舍': [0xC9, 0xE1]
-    };
-    
-    if (gbkMap[char]) {
-      return gbkMap[char];
-    }
-    
-    // 如果没有找到映射，尝试使用简单的 Unicode 到 GBK 转换
-    const code = char.charCodeAt(0);
-    
-    // 对于常见的中文字符范围，使用简化的转换
-    if (code >= 0x4E00 && code <= 0x9FFF) {
-      // 这是一个简化的转换，可能不完全准确，但可以避免乱码
-      const high = Math.floor((code - 0x4E00) / 256) + 0xA1;
-      const low = ((code - 0x4E00) % 256) + 0xA1;
-      return [high, low];
-    }
-    
-    // 对于其他字符，使用 UTF-8 编码作为备用
-    const utf8Bytes = [];
-    const utf8Str = unescape(encodeURIComponent(char));
-    for (let i = 0; i < utf8Str.length; i++) {
-      utf8Bytes.push(utf8Str.charCodeAt(i));
-    }
-    return utf8Bytes;
-  },
 
-  
+
   // 显示/隐藏蓝牙设备列表
   toggleBluetoothModal() {
     this.setData({
@@ -868,17 +924,14 @@ Page({
       return
     }
 
-    // 格式化打印内容
-    const printContent = this.formatOrderForPrint(order)
-    const buffer = this.stringToArrayBuffer(printContent)
+    try {
+      // 格式化打印内容
+      const printContent = this.formatOrderForPrint(order)
+      const buffer = this.stringToArrayBuffer(printContent)
 
-    wx.writeBLECharacteristicValue({
-      deviceId: characteristic.deviceId,
-      serviceId: characteristic.serviceId,
-      characteristicId: characteristic.characteristicId,
-      value: buffer,
-      success: () => {
-        console.log(`✅ 订单 ${order._id} 打印成功`)
+      // 使用分包发送提高兼容性
+      this.sendDataInChunksWithCallback(buffer, characteristic, () => {
+        console.log(`✅ 订单 ${order._id} 自动打印成功`)
         
         // 更新订单打印状态
         app.updateInfo('order_master', order._id, {
@@ -889,13 +942,16 @@ Page({
           // 打印成功后自动发货
           this.updateOrderToShipping(order._id)
         })
-      },
-      fail: (err) => {
-        console.error(`❌ 订单 ${order._id} 打印失败:`, err)
+      }, (err) => {
+        console.error(`❌ 订单 ${order._id} 自动打印失败:`, err)
         // 打印失败也要发货，避免订单积压
         this.updateOrderToShipping(order._id)
-      }
-    })
+      })
+    } catch (error) {
+      console.error(`自动打印订单 ${order._id} 过程出错:`, error)
+      // 出错也要发货，避免订单积压
+      this.updateOrderToShipping(order._id)
+    }
   },
 
   // 更新订单为发货状态
