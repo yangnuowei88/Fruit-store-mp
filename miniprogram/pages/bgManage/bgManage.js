@@ -557,10 +557,13 @@ Page({
 
   // 字符串转ArrayBuffer
   stringToArrayBuffer(str) {
-    const encoder = new TextEncoder();
-    return encoder.encode(str).buffer;
+    const bytes = unescape(encodeURIComponent(str))
+      .split('')
+      .map(char => char.charCodeAt(0));
+    return new Uint8Array(bytes).buffer;
   },
 
+  
   // 显示/隐藏蓝牙设备列表
   toggleBluetoothModal() {
     this.setData({

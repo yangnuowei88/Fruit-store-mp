@@ -30,7 +30,7 @@
   },
   "appid": "wx144a19ff0726d2a0",
   "projectname": "fruit-store",
-  "libVersion": "2.2.5",
+  "libVersion": "3.10.2",
   "simulatorType": "wechat",
   "simulatorPluginLibVersion": {},
   "condition": {
