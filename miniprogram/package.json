@@ -5,6 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "axios": "^0.18.0",
+    "iconv-lite": "^0.7.0",
     "request-promise": "^4.2.2",
     "wx-server-sdk": "^0.1.3"
   },
