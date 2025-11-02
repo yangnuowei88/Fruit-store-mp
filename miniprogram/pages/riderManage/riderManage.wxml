@@ -6,6 +6,7 @@
     <view class="weui-cells weui-cells_after-title">
       <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.sending && !item.finished}}">
         <view class='f_column'>
+          <view>订单号：{{item.orderNumber || '无'}}</view>
           <view>{{item.name}}</view>
           <view>{{item.phone}}</view>
           <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
@@ -17,6 +18,7 @@
         </view>
 
         <view class='Btns'>
+          <view class='callBtn' bindtap='makePhoneCall' data-phone="{{item.phone}}">打电话</view>
           <view class='upBtn' bindtap='sendingFruit' id="{{item._id}}">确认送达</view>
         </view>
       </view>

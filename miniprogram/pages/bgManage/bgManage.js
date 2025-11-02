@@ -32,6 +32,9 @@ Page({
    * 生命周期函数--监听页面加载
    */
   onLoad: function (options) {
+    // 初始化正在打印的订单ID集合
+    this.printingOrders = new Set()
+    
     this.getAllList()
     this.initBluetooth()
     this.startOrderMonitoring()
@@ -250,7 +253,8 @@ Page({
     var that = this
     console.log(e.currentTarget.id)
     app.updateInfo('order_master', e.currentTarget.id, {
-      finished: true,
+      sending: true,      // 确保配送状态为true
+      finished: true,     // 设置完成状态为true
       finishedTime: app.CurrentTime_show()
     }, e => {
       that.getAllList()
@@ -458,8 +462,28 @@ Page({
       const buffer = this.stringToArrayBuffer(printContent);
       console.log('转换后的ArrayBuffer:', buffer);
 
-      // 使用分包发送提高兼容性
-      this.sendDataInChunks(buffer, characteristic);
+      // 使用分包发送提高兼容性，并添加状态更新回调
+      this.sendDataInChunksWithCallback(buffer, characteristic, () => {
+        console.log(`✅ 订单 ${orderData._id} 打印成功`);
+        wx.showToast({
+          title: '打印成功',
+          icon: 'success'
+        });
+        
+        // 更新订单打印状态到数据库
+        app.updateInfo('order_master', orderData._id, {
+          printed: true,
+          printTime: app.CurrentTime_show()
+        }, () => {
+          console.log(`📝 订单 ${orderData._id} 打印状态已更新到数据库`);
+        });
+      }, (error) => {
+        console.error(`❌ 订单 ${orderData._id} 打印失败:`, error);
+        wx.showToast({
+          title: '打印失败',
+          icon: 'none'
+        });
+      });
     } catch (error) {
       console.error('打印过程出错:', error);
       wx.showToast({
@@ -563,6 +587,16 @@ Page({
 
   // 手动打印订单并记录状态
   printOrderWithStatus(orderData) {
+    // 检查是否正在打印
+    if (this.printingOrders.has(orderData._id)) {
+      console.log(`⚠️ 订单 ${orderData._id} 正在打印中，跳过重复打印`);
+      wx.showToast({
+        title: '订单正在打印中',
+        icon: 'none'
+      });
+      return;
+    }
+
     const characteristic = wx.getStorageSync('printerCharacteristic');
     if (!characteristic) {
       wx.showToast({
@@ -574,6 +608,49 @@ Page({
       return;
     }
 
+    // 先检查蓝牙连接状态
+    this.checkBluetoothConnection(characteristic, (isConnected) => {
+      if (!isConnected) {
+        console.log('🔄 蓝牙连接已断开，尝试重连...')
+        wx.showToast({
+          title: '检测到蓝牙断开，尝试重连...',
+          icon: 'loading',
+          duration: 2000
+        })
+        
+        this.attemptReconnectBluetooth(characteristic, (reconnected) => {
+          if (reconnected) {
+            console.log('✅ 蓝牙重连成功，继续打印')
+            wx.showToast({
+              title: '重连成功，开始打印',
+              icon: 'success'
+            })
+            this.executeManualPrint(orderData, characteristic)
+          } else {
+            console.log('❌ 蓝牙重连失败')
+            wx.showToast({
+              title: '蓝牙重连失败，请手动重新连接',
+              icon: 'none',
+              duration: 3000
+            })
+            // 重连失败也要发货
+            this.updateOrderToShipping(orderData._id)
+          }
+        })
+      } else {
+        console.log('✅ 蓝牙连接正常，开始手动打印')
+        this.executeManualPrint(orderData, characteristic)
+      }
+    })
+  },
+
+  // 执行手动打印操作
+  executeManualPrint(orderData, characteristic) {
+    // 添加到打印锁定集合（本地和全局）
+    this.printingOrders.add(orderData._id);
+    app.globalData.printingOrders.add(orderData._id);
+    console.log(`🔒 订单 ${orderData._id} 已加入打印锁定`);
+
     // 格式化打印内容
     const printContent = this.formatOrderForPrint(orderData);
     const buffer = this.stringToArrayBuffer(printContent);
@@ -581,6 +658,12 @@ Page({
     // 使用分包发送提高兼容性
     this.sendDataInChunksWithCallback(buffer, characteristic, () => {
       console.log(`✅ 手动打印订单 ${orderData._id} 成功`);
+      
+      // 从打印锁定集合中移除（本地和全局）
+      this.printingOrders.delete(orderData._id);
+      app.globalData.printingOrders.delete(orderData._id);
+      console.log(`🔓 订单 ${orderData._id} 已从打印锁定中移除`);
+      
       wx.showToast({
         title: '打印成功',
         icon: 'success'
@@ -597,6 +680,12 @@ Page({
       });
     }, (err) => {
       console.error(`❌ 手动打印订单 ${orderData._id} 失败:`, err);
+      
+      // 从打印锁定集合中移除（本地和全局）
+      this.printingOrders.delete(orderData._id);
+      app.globalData.printingOrders.delete(orderData._id);
+      console.log(`🔓 订单 ${orderData._id} 已从打印锁定中移除（失败）`);
+      
       wx.showToast({
         title: '打印失败',
         icon: 'none'
@@ -627,6 +716,10 @@ Page({
     
     // 5. 设置左对齐
     content += '\x1B\x61\x00'; // ESC a 0 - 左对齐
+    
+    // 订单号
+    content += `订单号: ${order.orderNumber || '无'}\n`;
+    content += '--------------------------------\n';
     
     // 客户信息
     content += `客户姓名: ${order.name}\n`;
@@ -760,10 +853,16 @@ Page({
   getInitialOrderCount() {
     const that = this;
     app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
-      const paidOrders = e.data.filter(order => order.paySuccess && !order.sending);
+      // 使用与检查新订单相同的过滤条件
+      const paidOrders = e.data.filter(order => 
+        order.paySuccess && 
+        !order.sending && 
+        (!order.printed || order.printed !== true)
+      );
       that.setData({
         lastOrderCount: paidOrders.length
       });
+      console.log(`初始订单数量: ${paidOrders.length}`);
     });
   },
 
@@ -771,7 +870,12 @@ Page({
   checkNewOrders() {
     const that = this;
     app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
-      const paidOrders = e.data.filter(order => order.paySuccess && !order.sending);
+      // 过滤条件：已支付、未发货、未打印或打印失败的订单
+      const paidOrders = e.data.filter(order => 
+        order.paySuccess && 
+        !order.sending && 
+        (!order.printed || order.printed !== true)
+      );
       const currentOrderCount = paidOrders.length;
       
       if (currentOrderCount > that.data.lastOrderCount) {
@@ -800,21 +904,45 @@ Page({
       dataUrl: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT'
     });
     
-    // 弹窗提醒
-    wx.showModal({
-      title: '新订单提醒',
-      content: `您有${count}个新订单！\n客户：${latestOrder.name}\n金额：¥${latestOrder.total}`,
-      confirmText: '查看订单',
-      cancelText: '稍后处理',
-      success: (res) => {
-        if (res.confirm) {
-          // 切换到已支付订单页面
-          this.setData({
-            cardNum: 1
-          });
-        }
-      }
+    // Toast提醒
+    wx.showToast({
+      title: `收到${count}个新订单`,
+      icon: 'success',
+      duration: 2000
     });
+    
+    // 自动处理新订单
+    this.processNewOrders(count, latestOrder);
+  },
+
+  // 处理新订单（自动打印和发货）
+  processNewOrders(count, latestOrder) {
+    const that = this;
+    
+    // 获取所有待处理订单
+    app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
+      const paidOrders = e.data.filter(order => order.paySuccess && !order.sending);
+      
+      // 处理每个新订单
+      paidOrders.slice(0, count).forEach((order, index) => {
+        setTimeout(() => {
+          that.processNewOrder(order);
+        }, index * 1000); // 每个订单间隔1秒处理，避免并发问题
+      });
+    });
+  },
+
+  // 处理单个新订单
+  processNewOrder(order) {
+    console.log(`🆕 处理新订单: ${order._id}`);
+    
+    // 检查是否启用自动打印
+    if (this.data.autoPrintEnabled) {
+      this.autoPrintOrder(order);
+    } else {
+      // 如果不自动打印，直接发货
+      this.updateOrderToShipping(order._id);
+    }
   },
 
   // 停止订单监听
@@ -862,26 +990,65 @@ Page({
 
   // 检查待发货订单
   checkPendingOrders() {
+    if (!this.data.autoShippingEnabled) return
+    
     console.log('🔍 检查待发货订单...')
     
     app.getInfoByOrder('order_master', 'orderTime', 'desc', (orders) => {
-      if (!orders || orders.length === 0) {
+      if (!orders || !orders.data || orders.data.length === 0) {
         console.log('没有找到订单数据')
         return
       }
 
-      // 筛选出已支付但未发货的订单
-      const pendingOrders = orders.filter(order => 
-        order.paySuccess === true && 
-        order.sending !== true &&
-        order.finished !== true
-      )
+      // 获取24小时前的时间戳
+      const now = new Date()
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      
+      console.log(`📅 当前时间: ${now.toLocaleString()}`)
+      console.log(`⏰ 24小时前: ${twentyFourHoursAgo.toLocaleString()}`)
 
-      console.log(`找到 ${pendingOrders.length} 个待发货订单`)
+      // 筛选已支付但未发货的订单，排除已打印、已发货、已完成和正在打印的订单
+      const pendingOrders = orders.data.filter(order => {
+        // 基本条件：已支付且未发货未完成
+        const basicCondition = order.paySuccess === true && 
+                              order.sending !== true &&
+                              order.finished !== true;
+        
+        // 排除正在打印的订单（本地和全局）
+        const notPrinting = !this.printingOrders.has(order._id) && 
+                           !app.globalData.printingOrders.has(order._id);
+        
+        // 排除已打印的订单
+        const notPrinted = order.printed !== true;
+        
+        // 时间筛选：只处理最近24小时内的订单
+        let isRecent = false
+        if (order.orderTime) {
+          try {
+            const orderDate = new Date(order.orderTime)
+            isRecent = orderDate >= twentyFourHoursAgo
+            
+            if (!isRecent) {
+              console.log(`⏰ 跳过24小时前的订单: ${order._id}, 订单时间: ${order.orderTime}`)
+            }
+          } catch (error) {
+            console.log(`❌ 订单时间解析失败: ${order._id}, 时间: ${order.orderTime}`)
+            isRecent = false
+          }
+        }
+        
+        return basicCondition && notPrinting && notPrinted && isRecent;
+      })
+
+      console.log(`📋 找到 ${pendingOrders.length} 个待发货订单`)
 
       if (pendingOrders.length > 0) {
-        pendingOrders.forEach(order => {
-          this.processAutoShipping(order)
+        // 处理每个待发货订单
+        pendingOrders.forEach((order, index) => {
+          // 添加延迟避免并发问题
+          setTimeout(() => {
+            this.processAutoShipping(order)
+          }, index * 500)
         })
       }
     })
@@ -917,6 +1084,25 @@ Page({
 
   // 自动打印订单
   autoPrintOrder(order) {
+    // 检查订单是否已经打印过
+    if (order.printed === true) {
+      console.log(`✅ 订单 ${order._id} 已打印过，直接发货`)
+      this.updateOrderToShipping(order._id)
+      return
+    }
+
+    // 检查订单是否已经发货
+    if (order.sending === true) {
+      console.log(`📦 订单 ${order._id} 已发货，跳过打印`)
+      return
+    }
+
+    // 检查是否正在打印
+    if (this.printingOrders.has(order._id) || app.globalData.printingOrders.has(order._id)) {
+      console.log(`⚠️ 订单 ${order._id} 正在打印中，跳过重复自动打印`)
+      return
+    }
+
     const characteristic = wx.getStorageSync('printerCharacteristic')
     if (!characteristic) {
       console.log('打印机未连接，跳过打印')
@@ -924,7 +1110,40 @@ Page({
       return
     }
 
+    // 先检查蓝牙连接状态
+    this.checkBluetoothConnection(characteristic, (isConnected) => {
+      if (!isConnected) {
+        console.log('🔄 蓝牙连接已断开，尝试重连...')
+        this.attemptReconnectBluetooth(characteristic, (reconnected) => {
+          if (reconnected) {
+            console.log('✅ 蓝牙重连成功，继续打印')
+            this.executeAutoPrint(order, characteristic)
+          } else {
+            console.log('❌ 蓝牙重连失败，跳过打印')
+            this.updateOrderToShipping(order._id)
+          }
+        })
+      } else {
+        console.log('✅ 蓝牙连接正常，开始自动打印')
+        this.executeAutoPrint(order, characteristic)
+      }
+    })
+  },
+
+  // 执行自动打印操作
+  executeAutoPrint(order, characteristic) {
+    // 检查是否正在打印
+    if (this.printingOrders.has(order._id)) {
+      console.log(`⚠️ 订单 ${order._id} 正在打印中，跳过重复自动打印`);
+      return;
+    }
+
     try {
+      // 添加到打印锁定集合（本地和全局）
+      this.printingOrders.add(order._id);
+      app.globalData.printingOrders.add(order._id);
+      console.log(`🔒 订单 ${order._id} 已加入自动打印锁定`);
+
       // 格式化打印内容
       const printContent = this.formatOrderForPrint(order)
       const buffer = this.stringToArrayBuffer(printContent)
@@ -932,6 +1151,11 @@ Page({
       // 使用分包发送提高兼容性
       this.sendDataInChunksWithCallback(buffer, characteristic, () => {
         console.log(`✅ 订单 ${order._id} 自动打印成功`)
+        
+        // 从打印锁定集合中移除（本地和全局）
+        this.printingOrders.delete(order._id);
+        app.globalData.printingOrders.delete(order._id);
+        console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除`);
         
         // 更新订单打印状态
         app.updateInfo('order_master', order._id, {
@@ -944,14 +1168,84 @@ Page({
         })
       }, (err) => {
         console.error(`❌ 订单 ${order._id} 自动打印失败:`, err)
+        
+        // 从打印锁定集合中移除（本地和全局）
+        this.printingOrders.delete(order._id);
+        app.globalData.printingOrders.delete(order._id);
+        console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除（失败）`);
+        
         // 打印失败也要发货，避免订单积压
         this.updateOrderToShipping(order._id)
       })
     } catch (error) {
       console.error(`自动打印订单 ${order._id} 过程出错:`, error)
+      
+      // 从打印锁定集合中移除（本地和全局）
+      this.printingOrders.delete(order._id);
+      app.globalData.printingOrders.delete(order._id);
+      console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除（出错）`);
+      
       // 出错也要发货，避免订单积压
       this.updateOrderToShipping(order._id)
     }
+  },
+
+  // 检查蓝牙连接状态
+  checkBluetoothConnection(characteristic, callback) {
+    if (!characteristic || !characteristic.deviceId) {
+      callback(false)
+      return
+    }
+
+    // 尝试获取蓝牙设备连接状态
+    wx.getBLEDeviceServices({
+      deviceId: characteristic.deviceId,
+      success: (res) => {
+        console.log('🔍 蓝牙设备服务检查成功，连接正常')
+        callback(true)
+      },
+      fail: (err) => {
+        console.log('🔍 蓝牙设备服务检查失败，连接可能已断开:', err)
+        callback(false)
+      }
+    })
+  },
+
+  // 尝试重新连接蓝牙
+  attemptReconnectBluetooth(characteristic, callback) {
+    if (!characteristic || !characteristic.deviceId) {
+      callback(false)
+      return
+    }
+
+    console.log('🔄 开始重连蓝牙设备...')
+    
+    // 先尝试直接连接
+    wx.createBLEConnection({
+      deviceId: characteristic.deviceId,
+      success: (res) => {
+        console.log('✅ 蓝牙设备重连成功')
+        
+        // 重连成功后，重新获取服务和特征值
+        setTimeout(() => {
+          wx.getBLEDeviceServices({
+            deviceId: characteristic.deviceId,
+            success: (servicesRes) => {
+              console.log('✅ 重新获取蓝牙服务成功')
+              callback(true)
+            },
+            fail: (servicesErr) => {
+              console.error('❌ 重新获取蓝牙服务失败:', servicesErr)
+              callback(false)
+            }
+          })
+        }, 1000) // 等待1秒确保连接稳定
+      },
+      fail: (err) => {
+        console.error('❌ 蓝牙设备重连失败:', err)
+        callback(false)
+      }
+    })
   },
 
   // 更新订单为发货状态
@@ -980,20 +1274,37 @@ Page({
   getAllList:function(){
     var that = this
     app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
+      // 筛选待发货订单：已支付但未发货未完成的订单
+      const pendingOrders = e.data.filter(order => {
+        return order.paySuccess === true && 
+               order.sending !== true && 
+               order.finished !== true;
+      });
+      
       that.setData({
-        orderList: e.data,
-        displayOrderList: e.data // 初始显示所有订单
+        orderList: pendingOrders,
+        displayOrderList: pendingOrders // 只显示待发货订单
       })
-      console.log(e.data)
+      console.log('待发货订单:', pendingOrders)
     })
     app.getInfoByOrder('order_master', 'sendingTime', 'desc', e => {
+      // 筛选配送中订单：已发货但未完成的订单
+      const shippingOrders = e.data.filter(order => {
+        return order.sending === true && order.finished !== true;
+      });
+      
       that.setData({
-        sendingList: e.data
+        sendingList: shippingOrders
       })
     })
     app.getInfoByOrder('order_master', 'finishedTime', 'desc', e => {
+      // 筛选已完成订单：已完成的订单
+      const completedOrders = e.data.filter(order => {
+        return order.finished === true;
+      });
+      
       that.setData({
-        finishedList: e.data
+        finishedList: completedOrders
       })
     })
   },
@@ -1013,6 +1324,10 @@ Page({
     this.getInitialOrderCount()
     this.startOrderMonitoring()
     this.startAutoShipping() // 启动自动发货检查
+    
+    // 通知全局停止后台处理，页面接管
+    app.globalData.backgroundOrderProcessing = false
+    console.log('📱 bgManage页面显示，接管订单处理')
   },
 
   /**
@@ -1021,6 +1336,10 @@ Page({
   onHide: function () {
     this.stopOrderMonitoring()
     this.stopAutoShipping()
+    
+    // 启用全局后台处理
+    app.globalData.backgroundOrderProcessing = true
+    console.log('🔄 bgManage页面隐藏，启用全局后台处理')
   },
 
   /**
@@ -1029,6 +1348,10 @@ Page({
   onUnload: function () {
     this.stopOrderMonitoring()
     this.stopAutoShipping()
+    
+    // 启用全局后台处理
+    app.globalData.backgroundOrderProcessing = true
+    console.log('🔄 bgManage页面卸载，启用全局后台处理')
   },
 
   /**

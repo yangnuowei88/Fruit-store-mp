@@ -133,8 +133,11 @@ Page({
 
       // ------获取prepay_id，所需的签名字符串------
       var p = new Promise((resolve,reject)=>{
-      // 生成订单号
+      // 生成支付订单号
       var out_trade_no = (new Date().getTime() + app.RndNum(6)).toString()
+      
+      // 生成业务订单号（包含日期时间）
+      var orderNumber = that.generateOrderNumber()
 
       // -----生成字符串------
       var stringA = 
@@ -184,6 +187,7 @@ Page({
       order_master['total'] = that.data.total
       order_master['openid'] = that.data.openid
       order_master['out_trade_no'] = out_trade_no
+      order_master['orderNumber'] = orderNumber
 
 
       console.log(order_master)
@@ -312,8 +316,11 @@ Page({
   mockPayment() {
     var that = this
     
-    // 生成模拟订单号
+    // 生成模拟支付订单号
     var out_trade_no = (new Date().getTime() + app.RndNum(6)).toString()
+    
+    // 生成业务订单号（包含日期时间）
+    var orderNumber = that.generateOrderNumber()
     
     // 生成订单信息
     let tmp = that.data.address
@@ -343,6 +350,7 @@ Page({
     order_master['totalPrice'] = that.data.total  // 使用totalPrice字段名
     order_master['_openid'] = that.data.openid
     order_master['out_trade_no'] = out_trade_no
+    order_master['orderNumber'] = orderNumber
 
     console.log('模拟支付订单:', order_master)
 
@@ -368,7 +376,21 @@ Page({
       }, 2000)
     })
   },
-  
+
+  // 生成订单号（格式：FS + YYYYMMDD + HHMMSS + 3位随机数）
+  generateOrderNumber() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hour = String(now.getHours()).padStart(2, '0')
+    const minute = String(now.getMinutes()).padStart(2, '0')
+    const second = String(now.getSeconds()).padStart(2, '0')
+    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0')
+    
+    return `${year}${month}${day}${hour}${minute}${second}${random}`
+  },
+
   getListAfterPay: function (that) {
     var p = new Promise((resolve, reject) => {
       let theList = []

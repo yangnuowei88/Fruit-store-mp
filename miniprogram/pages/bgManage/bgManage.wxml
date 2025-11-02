@@ -1,16 +1,14 @@
 <!-- 蓝牙打印机控制面板 -->
 <view class='bluetooth-panel'>
-  <view class='bluetooth-status'>
+  <view class='bluetooth-status-row'>
     <text class='status-text'>打印机状态：</text>
     <text class='status-value {{connectedDevice ? "connected" : "disconnected"}}'>
       {{connectedDevice ? connectedDevice.name || '已连接' : '未连接'}}
     </text>
-  </view>
-  <view class='bluetooth-controls'>
-    <button class='control-btn search-btn' bindtap='searchBluetoothDevices' disabled='{{isConnecting}}'>
+    <button class='control-btn search-btn' bindtap='searchBluetoothDevices' disabled='{{isConnecting}}' wx:if='{{!connectedDevice}}'>
       {{isConnecting ? '连接中...' : '搜索打印机'}}
     </button>
-    <button class='control-btn disconnect-btn' bindtap='disconnectBluetooth' disabled='{{!connectedDevice}}'>
+    <button class='control-btn disconnect-btn' bindtap='disconnectBluetooth' disabled='{{!connectedDevice}}' wx:if='{{connectedDevice}}'>
       断开连接
     </button>
   </view>
@@ -103,6 +101,7 @@
 
     <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.paySuccess && !item.sending}}">
       <view class='f_column'>
+        <view>订单号：{{item.orderNumber || '无'}}</view>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
         <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
@@ -129,8 +128,9 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.sending && !item.finished}}">
-      <view class='f_column'>
+    <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.sending && !item.finished}}">
+        <view class='f_column'>
+        <view>订单号：{{item.orderNumber || '无'}}</view>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
         <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
@@ -156,8 +156,9 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.finished}}">
-      <view class='f_column'>
+    <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.finished}}">
+        <view class='f_column'>
+        <view>订单号：{{item.orderNumber || '无'}}</view>
         <view>{{item.name}}</view>
         <view>{{item.phone}}</view>
         <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>

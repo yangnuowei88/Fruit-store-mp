@@ -37,13 +37,42 @@ Page({
     var that = this
     console.log(e.currentTarget.id)
     app.updateInfo('order_master', e.currentTarget.id, {
-      finished: true,
+      sending: true,      // 确保配送状态为true
+      finished: true,     // 设置完成状态为true
       finishedTime: app.CurrentTime_show()
     }, e => {
       that.getAllList()
       wx.showToast({
         title: '【已送达】',
       })
+    })
+  },
+
+  // 打电话功能
+  makePhoneCall: function(e) {
+    const phoneNumber = e.currentTarget.dataset.phone
+    console.log('准备拨打电话:', phoneNumber)
+    
+    if (!phoneNumber) {
+      wx.showToast({
+        title: '电话号码为空',
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.makePhoneCall({
+      phoneNumber: phoneNumber,
+      success: function() {
+        console.log('拨打电话成功')
+      },
+      fail: function(err) {
+        console.error('拨打电话失败:', err)
+        wx.showToast({
+          title: '拨打电话失败',
+          icon: 'none'
+        })
+      }
     })
   }
 })

@@ -17,28 +17,40 @@ Page {
   text-align: center;
 }
 
+/* 订单列表容器样式 */
+.theList {
+  width: 100%;
+  margin: 0;
+  padding: 0 20rpx;
+}
+
 /* 复用bgManage的订单列表样式 */
 .theList .listItem {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  padding: 13rpx 20rpx;
+  width: 100%;
+  padding: 20rpx;
   font-size: 25rpx;
   border-bottom: 1rpx gray dotted;
   background: white;
-  margin: 10rpx 20rpx;
-  border-radius: 10rpx;
+  margin: 10rpx 0;
+  border-radius: 0;
 }
 
 .f_column {
   display: flex;
+  width: 100%;
   flex-direction: column;
 }
 
 .Btns {
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 50rpx;
+  margin-right: 30rpx;
+  padding: 10rpx 0;
 }
 
 .upBtn {
@@ -50,7 +62,17 @@ Page {
   text-align: center;
   border-radius: 10rpx;
   color: white;
-  margin: 5rpx;
+}
+
+.callBtn {
+  width: 120rpx;
+  height: 50rpx;
+  line-height: 50rpx;
+  font-size: 24rpx;
+  background-color: rgba(52, 152, 219, 0.9);
+  text-align: center;
+  border-radius: 10rpx;
+  color: white;
 }
 
 /* 空状态样式 */
@@ -58,8 +80,8 @@ Page {
   text-align: center;
   padding: 100rpx 0;
   background: white;
-  margin: 20rpx;
-  border-radius: 15rpx;
+  margin: 20rpx 0;
+  border-radius: 0;
 }
 
 .empty-text {
