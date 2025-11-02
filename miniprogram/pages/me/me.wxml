@@ -1,25 +1,43 @@
 <view class="main">
     <view class="header">
-        <!-- <image src="{{thumb}}" class="thumb"></image> -->
-        <view class="thumb">
-          <open-data type="userAvatarUrl"></open-data>
-        </view>
-        <view class='nickname'>
-          <open-data type="userNickName"></open-data>
-        </view>
-        <!-- <text class="nickname">{{nickname}}</text> -->
+        <!-- 个人页面头部区域 -->
+        <view class="page-title" bindlongpress="onLongPressTitle">个人中心</view>
     </view>
 
-    <!-- 后台管理 -->
-    <view class="bgInfo {{openid}}" bindtap='goToBgInfo' hidden="{{!(isAdmin >= 0)}}">后台管理</view>
 
-    <!-- 订单管理 -->
-    <view class="bgInfo {{openid}}" bindtap='goToBgManage' hidden="{{!(isAdmin >= 0)}}">订单管理</view>
+    <!-- 加载状态 -->
+    <view wx:if="{{roleLoading}}" class="loading-container">
+        <view class="loading-text">正在获取用户信息</view>
+    </view>
 
-    <!-- 骑手配送 -->
-    <view class="rider-entry" bindtap='goToRiderManage'>
-        <view class="rider-icon">🚴‍♂️</view>
-        <view class="rider-text">骑手配送</view>
+    <!-- 管理功能按钮区域 -->
+    <view class="management-section">
+        <!-- 后台管理按钮 -->
+        <view wx:if="{{permissions.canViewBackend}}" class="mgmt-btn backend-btn" bindtap="toBackend">
+            <view class="btn-icon">🏪</view>
+            <view class="btn-content">
+                <view class="btn-text">后台管理</view>
+                <view class="btn-desc">商品管理、订单处理、数据统计</view>
+            </view>
+        </view>
+
+        <!-- 订单管理按钮 -->
+        <view wx:if="{{permissions.canViewOrderManage}}" class="mgmt-btn order-btn" bindtap="toOrderManage">
+            <view class="btn-icon">📋</view>
+            <view class="btn-content">
+                <view class="btn-text">订单管理</view>
+                <view class="btn-desc">查看所有订单、处理订单状态</view>
+            </view>
+        </view>
+
+        <!-- 骑手配送按钮 -->
+        <view wx:if="{{permissions.canViewRiderManage}}" class="mgmt-btn rider-btn" bindtap="toRiderManage">
+            <view class="btn-icon">🚚</view>
+            <view class="btn-content">
+                <view class="btn-text">骑手配送</view>
+                <view class="btn-desc">配送任务管理、路线规划</view>
+            </view>
+        </view>
     </view>
 
     <!-- 地址管理 -->
@@ -36,23 +54,67 @@
 
     <!-- 我的订单 -->
     <view class="orders-box">
-        <view class="orders">我的订单</view>
+        <view class="orders-header">
+            <text class="orders-title">我的订单</text>
+            <text class="orders-count" wx:if="{{orders.length > 0}}">({{orders.length}})</text>
+        </view>
+        
+        <!-- 空订单状态 -->
+        <view class="empty-orders" wx:if="{{orders.length === 0}}">
+            <view class="empty-icon">📦</view>
+            <view class="empty-text">暂无订单</view>
+            <view class="empty-tip">快去选购您喜欢的水果吧~</view>
+        </view>
+        
+        <!-- 订单列表 -->
         <view class="orders-list" wx:for="{{orders}}" wx:key="index">
+            <!-- 订单头部信息 -->
+            <view class="order-header">
+                <view class="order-number">订单号：{{item.orderNumber || '无'}}</view>
+                <view class="order-status {{item.finished ? 'status-completed' : (item.sending ? 'status-shipping' : (item.paySuccess ? 'status-paid' : 'status-unpaid'))}}">
+                    <text wx:if="{{item.finished}}">✅ 已送达</text>
+                    <text wx:elif="{{item.sending}}">🚚 配送中</text>
+                    <text wx:elif="{{item.paySuccess}}">💰 已支付</text>
+                    <text wx:else>⏳ 待支付</text>
+                </view>
+            </view>
 
-            <view class="orders-number">订单号：{{item.orderNumber || '无'}}</view>
-            <view class="orders-number" wx:if="{{item.paySuccess && !item.sending}}">订单状态：已支付</view>
-            <view class="orders-number" wx:if="{{item.sending && !item.finished}}">订单状态：配送中</view>
-            <view class="orders-number" wx:if="{{item.finished}}">订单状态：已送达</view>
+            <!-- 时间信息 -->
+            <view class="order-time">
+                <view wx:if="{{item.orderTime}}">下单时间：{{item.orderTime}}</view>
+                <view wx:if="{{item.payTime && item.paySuccess}}">支付时间：{{item.payTime}}</view>
+                <view wx:if="{{item.sendingTime && item.sending}}">发货时间：{{item.sendingTime}}</view>
+                <view wx:if="{{item.finishedTime && item.finished}}">送达时间：{{item.finishedTime}}</view>
+            </view>
 
-            <view class="orders-number" wx:if="{{item.paySuccess && !item.sending}}">下单时间：{{item.orderTime}}</view>
-            <view class="orders-number" wx:if="{{item.finished}}">送达时间：{{item.finishedTime}}</view>
+            <!-- 商品列表 -->
+            <view class="order-products">
+                <view class="products-title">商品清单：</view>
+                <view class="product-item" wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">
+                    <text class="product-name">{{fruitArr[0]}}</text>
+                    <text class="product-quantity">×{{fruitArr[1]}}</text>
+                    <text class="product-price" wx:if="{{fruitArr[2]}}">￥{{fruitArr[2]}}</text>
+                </view>
+            </view>
 
-            <view style='padding:15rpx 0;'>
-              <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+            <!-- 配送信息 -->
+            <view class="order-address" wx:if="{{item.name && item.phone}}">
+                <view class="address-info">
+                    <text class="address-label">收货人：</text>
+                    <text>{{item.name}} {{item.phone}}</text>
+                </view>
+                <view class="address-detail" wx:if="{{item.detail}}">
+                    <text class="address-label">地址：</text>
+                    <text>{{item.detail}}</text>
+                </view>
             </view>
                 
+            <!-- 订单底部 -->
             <view class="orders-footer">
-                <text>实付：￥{{item.total}}</text>
+                <view class="total-amount">
+                    <text class="amount-label">实付金额：</text>
+                    <text class="amount-value">￥{{item.total}}</text>
+                </view>
             </view>
         </view>
     </view>

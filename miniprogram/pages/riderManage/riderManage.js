@@ -4,7 +4,9 @@ const app = getApp()
 Page({
   data: {
     orderList: [],
-    displayOrderList: []
+    displayOrderList: [],
+    pendingDeliveryCount: 0,  // 待配送订单数量
+    totalOrderCount: 0        // 总订单数量
   },
 
   onLoad: function (options) {
@@ -24,9 +26,23 @@ Page({
     var that = this
     app.getInfoByOrder('order_master', 'orderTime', 'desc', res => {
       console.log('获取订单数据:', res.data)
+      
+      // 计算待配送订单数量（已发货但未完成的订单）
+      const pendingDeliveryOrders = res.data.filter(order => {
+        return order.sending === true && order.finished !== true;
+      });
+      
+      // 计算总订单数量
+      const totalOrders = res.data.length;
+      
+      console.log('待配送订单数量:', pendingDeliveryOrders.length)
+      console.log('总订单数量:', totalOrders)
+      
       that.setData({
         orderList: res.data,
-        displayOrderList: res.data
+        displayOrderList: res.data,
+        pendingDeliveryCount: pendingDeliveryOrders.length,
+        totalOrderCount: totalOrders
       })
       wx.stopPullDownRefresh()
     })

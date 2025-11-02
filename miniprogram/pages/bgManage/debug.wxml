@@ -1,0 +1,54 @@
+<!--调试页面：查看数据库订单状态-->
+<view class="debug-container">
+  <view class="debug-header">
+    <text class="debug-title">📊 订单数据库调试</text>
+  </view>
+  
+  <view class="debug-actions">
+    <button class="debug-btn" bindtap="queryAllOrders">🔄 刷新数据</button>
+    <button class="debug-btn" bindtap="testShipping">🚚 测试发货</button>
+    <button class="debug-btn" bindtap="copyDebugInfo">📋 复制信息</button>
+  </view>
+  
+  <view class="debug-stats">
+    <view class="stat-item">
+      <text class="stat-label">总订单数:</text>
+      <text class="stat-value">{{allOrders.length}}</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-label">已发货订单:</text>
+      <text class="stat-value">{{shippingOrders.length}}</text>
+    </view>
+  </view>
+  
+  <view class="debug-info">
+    <text class="info-title">📋 详细信息:</text>
+    <text class="info-content">{{debugInfo}}</text>
+  </view>
+  
+  <view class="order-list" wx:if="{{allOrders.length > 0}}">
+    <text class="list-title">📦 订单列表:</text>
+    <view class="order-item" wx:for="{{allOrders}}" wx:key="_id">
+      <view class="order-header">
+        <text class="order-id">{{item._id}}</text>
+        <text class="order-total">¥{{item.total}}</text>
+      </view>
+      <view class="order-status">
+        <text class="status-item {{item.paySuccess ? 'status-success' : 'status-pending'}}">
+          {{item.paySuccess ? '✅已支付' : '❌未支付'}}
+        </text>
+        <text class="status-item {{item.sending ? 'status-success' : 'status-pending'}}">
+          {{item.sending ? '🚚已发货' : '📦待发货'}}
+        </text>
+        <text class="status-item {{item.finished ? 'status-success' : 'status-pending'}}">
+          {{item.finished ? '✅已完成' : '⏳进行中'}}
+        </text>
+      </view>
+      <view class="order-times">
+        <text class="time-item">下单: {{item.orderTime}}</text>
+        <text class="time-item" wx:if="{{item.sendingTime}}">发货: {{item.sendingTime}}</text>
+        <text class="time-item" wx:if="{{item.finishedTime}}">完成: {{item.finishedTime}}</text>
+      </view>
+    </view>
+  </view>
+</view>

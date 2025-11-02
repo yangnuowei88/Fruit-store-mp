@@ -208,16 +208,26 @@ App({
 
   // 执行打印操作
   executePrint(order, characteristic) {
+    console.log(`🌐 ===== 开始执行全局打印 =====`);
+    console.log(`📋 订单ID: ${order._id}`);
+    console.log(`🖨️ 打印机特征值: ${JSON.stringify(characteristic)}`);
+    
     try {
       console.log(`🖨️ 开始打印订单 ${order._id}`)
       
       // 格式化打印内容
+      console.log(`📄 正在格式化全局打印内容...`);
       const printContent = this.formatOrderForPrint(order)
+      console.log(`📄 全局打印内容字符长度: ${printContent.length}`);
+      
       const buffer = this.stringToArrayBuffer(printContent)
+      console.log(`📦 全局打印数据包大小: ${buffer.byteLength} 字节`);
 
       // 使用分包发送提高兼容性
+      console.log(`📡 开始发送全局打印数据到打印机...`);
       this.sendDataInChunksWithCallback(buffer, characteristic, () => {
         console.log(`✅ 订单 ${order._id} 全局自动打印成功`)
+        console.log(`🎉 ===== 全局打印成功完成 =====`);
         
         // 移除打印锁定
         this.globalData.printingOrders.delete(order._id)
@@ -234,6 +244,8 @@ App({
         })
       }, (err) => {
         console.error(`❌ 订单 ${order._id} 全局自动打印失败:`, err)
+        console.log(`💥 ===== 全局打印失败 =====`);
+        
         // 移除打印锁定
         this.globalData.printingOrders.delete(order._id)
         console.log(`🔓 订单 ${order._id} 打印失败，移除打印锁定`)
@@ -242,6 +254,8 @@ App({
       })
     } catch (error) {
       console.error(`全局自动打印订单 ${order._id} 过程出错:`, error)
+      console.log(`💥 ===== 全局打印出错 =====`);
+      
       // 移除打印锁定
       this.globalData.printingOrders.delete(order._id)
       console.log(`🔓 订单 ${order._id} 打印出错，移除打印锁定`)
@@ -445,7 +459,7 @@ App({
     
     this.updateInfo('order_master', orderId, {
       sending: true,
-      sendTime: this.CurrentTime_show()
+      sendingTime: this.CurrentTime_show()
     }, () => {
       console.log(`✅ 订单 ${orderId} 已自动发货`)
     })

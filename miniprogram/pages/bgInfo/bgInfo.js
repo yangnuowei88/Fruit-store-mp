@@ -1,5 +1,6 @@
 // miniprogram/pages/bgInfo/bgInfo.js
 const app = getApp()
+const dateUtils = require('../../utils/dateUtils.js')
 
 Page({
 
@@ -457,11 +458,12 @@ Page({
       console.log('订单时间原始值:', order.orderTime)
       console.log('订单时间类型:', typeof order.orderTime)
       
-      const orderDate = new Date(order.orderTime || '')
+      // 使用iOS兼容的日期解析函数
+      const orderDate = dateUtils.parseDate(order.orderTime)
       console.log('解析后的Date对象:', orderDate)
-      console.log('Date对象是否有效:', !isNaN(orderDate.getTime()))
+      console.log('Date对象是否有效:', orderDate && !isNaN(orderDate.getTime()))
       
-      const orderDateStr = this.formatDate(orderDate)
+      const orderDateStr = orderDate ? this.formatDate(orderDate) : ''
       console.log('格式化后的订单日期:', orderDateStr)
       console.log('今天日期:', todayStr)
       console.log('日期是否匹配:', orderDateStr === todayStr)
@@ -545,9 +547,9 @@ Page({
     let weekOrderCount = 0
     
     orders.forEach(order => {
-      const orderDate = new Date(order.orderTime || '')
+      const orderDate = dateUtils.parseDate(order.orderTime)
       
-      if (orderDate >= weekStart && orderDate <= today) {
+      if (orderDate && orderDate >= weekStart && orderDate <= today) {
         weekOrderCount++
         
         // 计算营业额（所有已支付的订单：待发货、配送中、已完成）
@@ -581,9 +583,9 @@ Page({
     let monthOrderCount = 0
     
     orders.forEach(order => {
-      const orderDate = new Date(order.orderTime || '')
+      const orderDate = dateUtils.parseDate(order.orderTime)
       
-      if (orderDate >= monthStart && orderDate <= today) {
+      if (orderDate && orderDate >= monthStart && orderDate <= today) {
         monthOrderCount++
         
         // 计算营业额（所有已支付的订单：待发货、配送中、已完成）

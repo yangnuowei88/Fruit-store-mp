@@ -3,6 +3,7 @@
   "pages": [
     "pages/homepage/homepage",
     "pages/bgManage/bgManage",
+    "pages/bgManage/debug",
     "pages/bgInfo/bgInfo",
     "pages/cart/cart",
     "pages/me/me",

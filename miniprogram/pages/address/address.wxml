@@ -1,111 +1,61 @@
 <view class="main">
-
-    <!-- <view class="weui-cells__title">个人信息</view>
-
-    <view class="weui-cells weui-cells_after-title"> -->
-      <!-- 姓名 -->
-      <!-- <view class="weui-cell weui-cell_input">
-        <view class="weui-cell__hd">
-          <view class="weui-label">姓名</view>
-        </view>
-        <view class="weui-cell__bd weui-cell__ft">
-          <input class="weui-input" bindinput='getName'/>
-        </view> -->
-      <!-- </view> -->
-
-      <!-- 手机 -->
-      <!-- <view class="weui-cell weui-cell_input">
-        <view class="weui-cell__hd">
-          <view class="weui-label">手机</view>
-        </view>
-        <view class="weui-cell__bd weui-cell__ft">
-          <input class="weui-input" type="digit" bindinput='getPhone'/>
-        </view>
-      </view> -->
-
-      <!-- 校区 -->
-      <!-- <view class="weui-cell weui-cell_input">
-        <view class="weui-cell__bd cell-title">选择校区</view>
-        <view class="weui-cell__ft">
-          <picker range="{{school_Arr}}" value="{{school}}" bindchange="getSchool">
-            <view class="weui-input">{{school_Arr[school]||'选择'}}</view>
-          </picker>
-        </view>
-      </view> -->
-
-      <!-- 详细地址 -->
-      <!-- <view class="weui-cell weui-cell_input">
-        <view class="weui-cell__bd cell-title">详细地址</view>
-        <view class="weui-cell__ft">
-          <picker range="{{address_Arr}}" value="{{address}}" bindchange="getAddress">
-            <view class="weui-input">{{address_Arr[address]||'选择'}}</view>
-          </picker>
-        </view>
-      </view> -->
-
-      <!-- 宿舍楼号 -->
-      <!-- <view class="weui-cell weui-cell_input" wx:if="{{schoolName==='交大' && addressItem==='宿舍楼'}}">
-        <view class="weui-cell__bd cell-title">宿舍楼号</view>
-        <view class="weui-cell__ft">
-          <picker range="{{apartment_Arr}}" value="{{apartment}}" bindchange="getApartment">
-            <view class="weui-input">{{apartment_Arr[apartment]||'选择'}}</view>
-          </picker>
-        </view>
-      </view>
-
-    </view>
-
-    <view class="weui-cells__title">备注信息</view>
-
-    <view class='message'>
-      <textarea name="message" value="{{address.message}}" bindinput="getExtra"></textarea>
-    </view> -->
-
-    <!---------- 按钮 ------------->
-    <!-- <view class="weui-btn-area">
-      <button class="weui-btn" type="primary" bindtap="addToStorage">保存</button>
-    </view> -->
-
-
     <view class="form-box">
         <form bindsubmit="formSubmit">
-            <input value="{{address.name}}" name="name" placeholder="姓名"/>
-            <input type="digit" name="phone" value="{{address.phone}}" placeholder="电话号码"/>
+            <view class="form-item">
+                <view class="form-label">姓名</view>
+                <input 
+                    value="{{address.name}}" 
+                    name="name" 
+                    placeholder="请输入收货人姓名" 
+                    class="form-input {{validation.nameValid ? '' : 'error'}}"
+                    bindinput="onNameInput"
+                />
+                <view class="error-tip" wx:if="{{!validation.nameValid}}">{{errors.name}}</view>
+            </view>
             
-            <!-- <view class='school'>
-              <view>校区：</view>
-              <view>
-                <picker range="{{school_Arr}}" value="{{school}}" bindchange="getSchool" name="schoolName">
-                  <view>{{school_Arr[school]||'请选择校区'}}</view>
-                </picker>
-              </view>
-            </view> -->
-
-            <view class="weui-cell__bd cell-title">选择校区:</view>
-            <view class="weui-cell__ft">
-              <picker range="{{school_Arr}}" value="{{address.schoolName}}" name='schoolName'  bindchange="getSchool">
-                {{school_Arr[address.schoolName]||'选择'}}
-              </picker>
+            <view class="form-item">
+                <view class="form-label">电话</view>
+                <input 
+                    type="digit" 
+                    name="phone" 
+                    value="{{address.phone}}" 
+                    placeholder="请输入手机号码" 
+                    class="form-input {{validation.phoneValid ? '' : 'error'}}"
+                    bindinput="onPhoneInput"
+                />
+                <view class="error-tip" wx:if="{{!validation.phoneValid}}">{{errors.phone}}</view>
+            </view>
+            
+            <view class="form-item">
+                <view class="form-label">详细地址</view>
+                <textarea 
+                    name="detail" 
+                    value="{{address.detail}}" 
+                    placeholder="请输入详细收货地址，如：北京市朝阳区某某街道某某小区某栋某单元某室" 
+                    class="form-textarea {{validation.detailValid ? '' : 'error'}}"
+                    bindinput="onDetailInput"
+                ></textarea>
+                <view class="error-tip" wx:if="{{!validation.detailValid}}">{{errors.detail}}</view>
             </view>
 
-            <view class="weui-cell__bd cell-title">详细地址：</view>
-            <view class="weui-cell__ft">
-              <picker range="{{address_Arr}}" value="{{address.addressItem}}" name='addressItem' bindchange="getAddress">
-                <view class="weui-input">{{address_Arr[address.addressItem]||'选择'}}</view>
-              </picker>
+            <view class="form-item">
+                <view class="form-label">备注</view>
+                <textarea 
+                    name="message" 
+                    value="{{address.message}}" 
+                    placeholder="配送备注（选填），如：请放在门口、联系电话等" 
+                    class="form-textarea {{validation.messageValid ? '' : 'error'}}"
+                    bindinput="onMessageInput"
+                ></textarea>
+                <view class="error-tip" wx:if="{{!validation.messageValid}}">{{errors.message}}</view>
             </view>
-
-            <view class='slider'>
-              <view>宿舍楼号：</view>
-              <slider name="detail" min='0' max='60' show-value value="{{address.detail}}"></slider>
-            </view>
-
-            <view>备注：</view>
-            <view class='message'>
-              <textarea name="message" value="{{address.message}}"></textarea>
-            </view>
-            <button form-type="submit">保存</button>
+            
+            <button 
+                form-type="submit" 
+                class="save-btn {{validation.nameValid && validation.phoneValid && validation.detailValid && validation.messageValid ? '' : 'disabled'}}"
+            >
+                保存地址
+            </button>
         </form>
     </view>
-
 </view>

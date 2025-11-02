@@ -12,6 +12,27 @@
       断开连接
     </button>
   </view>
+  
+  <!-- 模拟打印机控制 -->
+  <view class='mock-printer-panel'>
+    <view class='panel-divider'></view>
+    <view class='mock-printer-title'>
+      <text class='title-text'>🖨️ 模拟打印机</text>
+      <text class='title-desc'>用于测试打印功能</text>
+    </view>
+    <view class='mock-printer-controls'>
+      <button class='control-btn mock-connect-btn' bindtap='connectMockPrinter' wx:if='{{!mockPrinterConnected}}'>
+        连接模拟打印机
+      </button>
+      <button class='control-btn mock-disconnect-btn' bindtap='disconnectMockPrinter' wx:if='{{mockPrinterConnected}}'>
+        断开模拟打印机
+      </button>
+      <view class='mock-status' wx:if='{{mockPrinterConnected}}'>
+        <text class='mock-status-text'>✅ 模拟打印机已连接</text>
+        <text class='mock-device-name'>{{mockPrinterDevice.name}}</text>
+      </view>
+    </view>
+  </view>
 </view>
 
 <!-- 自动发货控制面板 -->
@@ -26,6 +47,9 @@
     <text class='setting-label'>自动打印：</text>
     <switch class='setting-switch' checked='{{autoPrintEnabled}}' bindchange='toggleAutoPrint'></switch>
     <text class='setting-status'>{{autoPrintEnabled ? '已启用' : '已禁用'}}</text>
+  </view>
+  <view class='debug-section'>
+    <button class='debug-btn' bindtap='goToDebug'>📊 数据库调试</button>
   </view>
   <view class='setting-description'>
     <text class='description-text'>• 自动发货：已支付订单将自动更新为发货状态</text>
@@ -87,7 +111,7 @@
 
 <view class='tapCard'>
   <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>已支付</view>
-  <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已打单</view>
+  <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>已发货</view>
   <view class="deliver {{cardNum === 3 ? 'tapOn':'tapOff'}} " bindtap='tapTo3'>已送达</view>
   <view class="deliver {{cardNum === 4 ? 'tapOn':'tapOff'}} " bindtap='tapTo4'>所有订单</view>
 </view>
@@ -128,7 +152,7 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.sending && !item.finished}}">
+    <view wx:for="{{sendingList}}" wx:key="idx" class='listItem'>
         <view class='f_column'>
         <view>订单号：{{item.orderNumber || '无'}}</view>
         <view>{{item.name}}</view>
@@ -142,7 +166,7 @@
       </view>
 
       <view class='Btns'>
-        <view class='upBtn' bindtap='sendingFruit' id="{{item._id}}">送达</view>
+        <view class='upBtn' bindtap='confirmDelivery' id="{{item._id}}">送达</view>
       </view>
     </view>
   </view>
@@ -156,7 +180,7 @@
 <view class='theList'>
 
   <view class="weui-cells weui-cells_after-title">
-    <view wx:for="{{displayOrderList}}" wx:key="idx" class='listItem' wx:if="{{item.finished}}">
+    <view wx:for="{{finishedList}}" wx:key="idx" class='listItem'>
         <view class='f_column'>
         <view>订单号：{{item.orderNumber || '无'}}</view>
         <view>{{item.name}}</view>

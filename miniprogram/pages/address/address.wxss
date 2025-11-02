@@ -1,24 +1,125 @@
-.form-box{
-    padding: 30rpx;
-    margin-top: 20rpx;color: rgb(165, 164, 164)
-}
-.form-box input{
-    height: 90rpx;
-    border-bottom: 1rpx solid #dadada;
-    color: rgb(100, 100, 100);
-}
-.form-box .input-placeholder{
-    color: rgb(100, 100, 100);
-}
-.form-box button{
-    margin:30rpx 30rpx 0 0;
+/* 地址页面样式 */
+.form-box {
+  padding: 30rpx;
+  margin-top: 20rpx;
+  color: rgb(165, 164, 164);
 }
 
-.slider {margin-top: 20rpx;color: rgb(165, 164, 164)}
+.form-box input {
+  height: 90rpx;
+  border-bottom: 1rpx solid #dadada;
+  color: rgb(100, 100, 100);
+}
 
-.message {margin: 20rpx;border-radius: 20rpx;border: 0.5rpx solid #adadad;padding: 20rpx;}
+.form-box .input-placeholder {
+  color: rgb(100, 100, 100);
+}
 
-.school {display: flex;flex-direction: column;justify-content: start;color: rgb(100, 100, 100)}
+.form-box button {
+  margin: 30rpx 30rpx 0 0;
+}
+
+/* 表单标签样式 */
+.form-label {
+  font-size: 32rpx;
+  color: #333;
+  margin-bottom: 20rpx;
+  font-weight: 500;
+}
+
+/* 表单输入框样式 */
+.form-input {
+  width: 100%;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #e0e0e0;
+  font-size: 32rpx;
+  color: #333;
+  transition: border-bottom-color 0.3s ease;
+}
+
+.form-input:focus {
+  border-bottom-color: #07c160;
+}
+
+.form-input.error {
+  border-bottom-color: #ff4757;
+}
+
+/* 文本域样式 */
+.form-textarea {
+  width: 100%;
+  min-height: 120rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #e0e0e0;
+  font-size: 32rpx;
+  color: #333;
+  line-height: 1.5;
+  transition: border-bottom-color 0.3s ease;
+}
+
+.form-textarea:focus {
+  border-bottom-color: #07c160;
+}
+
+.form-textarea.error {
+  border-bottom-color: #ff4757;
+}
+
+/* 错误提示样式 */
+.error-tip {
+  font-size: 24rpx;
+  color: #ff4757;
+  margin-top: 10rpx;
+  padding-left: 0;
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5rpx); }
+  75% { transform: translateX(5rpx); }
+}
+
+/* 表单项容器 */
+.form-item {
+  margin-bottom: 40rpx;
+}
+
+.form-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 保存按钮样式 */
+.save-btn {
+  width: 100%;
+  margin-top: 60rpx;
+  padding: 24rpx 0;
+  background-color: #07c160;
+  color: white;
+  border-radius: 8rpx;
+  font-size: 34rpx;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.save-btn:active {
+  background-color: #06ad56;
+  transform: scale(0.98);
+}
+
+.save-btn.disabled {
+  background-color: #c0c0c0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.save-btn.disabled:active {
+  background-color: #c0c0c0;
+  transform: none;
+}
+
+/* 页面基础样式 */
 
 page {
   line-height: 1.6;

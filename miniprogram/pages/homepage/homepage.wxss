@@ -1,5 +1,48 @@
 page {background-color: rgb(245, 249, 253)}
 
+/* 模拟下单按钮样式 */
+.mock-order-container {
+  display: flex;
+  justify-content: center;
+  padding: 20rpx;
+  margin: 10rpx 20rpx;
+}
+
+.mock-order-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  color: white;
+  border: none;
+  border-radius: 50rpx;
+  padding: 15rpx 40rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  box-shadow: 0 8rpx 20rpx rgba(255, 107, 107, 0.3);
+  transition: all 0.3s ease;
+}
+
+.mock-order-btn::after {
+  border: none;
+}
+
+.mock-order-btn:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 10rpx rgba(255, 107, 107, 0.4);
+}
+
+.mock-order-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 15rpx;
+}
+
+.mock-order-text {
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
 /* 轮播图 */
 .swiperContainer {width: 750prx;height: 500rpx;}
 .fruit-board {margin-top: 10rpx}

@@ -3,7 +3,6 @@
 <view class='tapCard'>
   <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>添加水果</view>
   <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>上架修改</view>
-  <view class="deliver {{cardNum === 3 ? 'tapOn':'tapOff'}} " bindtap='tapTo3'>送货管理</view>
   <view class="statistics {{cardNum === 4 ? 'tapOn':'tapOff'}} " bindtap='tapTo4'>营业统计</view>
 </view>
 

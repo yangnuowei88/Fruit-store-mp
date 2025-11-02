@@ -1,24 +1,175 @@
 .header{
     position: relative;
-    height: 220rpx;
-    line-height: 120rpx;
-    padding:30rpx 30rpx 30rpx 180rpx;
+    height: 120rpx;
+    padding: 30rpx;
     box-sizing: border-box;
     background: #FFF5EE;
     font-size: 35rpx;
     color: rgb(138, 138, 138);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.header .thumb{
+
+.page-title {
+    font-size: 36rpx;
+    font-weight: bold;
+    color: #333;
+    position: relative;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+.page-title:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+}
+
+.page-title::after {
+    content: '';
     position: absolute;
-    left: 30rpx;
-    top: 30rpx;
-    width: 120rpx;
-    height: 120rpx;
-    border-radius: 50%;
-    overflow: hidden;
+    bottom: -8rpx;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60rpx;
+    height: 4rpx;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 2rpx;
+    opacity: 0.6;
 }
+
 .header .about{
     float: right;
+}
+
+/* 用户角色标识样式 */
+.role-indicator {
+    text-align: right;
+    padding: 10rpx 20rpx;
+    margin-bottom: 10rpx;
+}
+
+.role-text {
+    font-size: 24rpx;
+    font-weight: bold;
+    padding: 6rpx 12rpx;
+    border-radius: 20rpx;
+    display: inline-block;
+}
+
+.role-admin-text {
+    background: linear-gradient(45deg, #ffd700, #ffed4e);
+    color: #333;
+}
+
+.role-rider-text {
+    background: linear-gradient(45deg, #4facfe, #00f2fe);
+    color: white;
+}
+
+/* 加载状态样式 */
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60rpx;
+    background: #f8f9fa;
+    margin: 20rpx;
+    border-radius: 12rpx;
+}
+
+.loading-text {
+    font-size: 28rpx;
+    color: #666;
+    position: relative;
+}
+
+.loading-text::after {
+    content: '';
+    display: inline-block;
+    width: 20rpx;
+    height: 20rpx;
+    border: 3rpx solid #ddd;
+    border-top-color: #007aff;
+    border-radius: 50%;
+    margin-left: 15rpx;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 管理功能按钮区域 */
+.management-section {
+    padding: 0 20rpx;
+}
+
+.mgmt-btn {
+    display: flex;
+    align-items: center;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
+    background: white;
+    border-radius: 16rpx;
+    box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.mgmt-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6rpx;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.mgmt-btn:active {
+    transform: translateY(2rpx);
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.12);
+}
+
+.btn-icon {
+    font-size: 48rpx;
+    margin-right: 24rpx;
+    width: 80rpx;
+    text-align: center;
+}
+
+.btn-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-text {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8rpx;
+}
+
+.btn-desc {
+    font-size: 24rpx;
+    color: #666;
+    opacity: 0.8;
+}
+
+/* 不同按钮的特色样式 */
+.backend-btn::before {
+    background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+}
+
+.order-btn::before {
+    background: linear-gradient(90deg, #4ecdc4, #44a08d);
+}
+
+.rider-btn::before {
+    background: linear-gradient(90deg, #45b7d1, #96c93d);
 }
 
 .bgInfo {margin: 20rpx 10rpx 20rpx 10rpx;border: 0.5rpx #EE6A50 dotted;border-radius: 10rpx;text-align: center;background: #EE6A50;color: white;height: 65rpx;line-height: 65rpx;font-size: 28rpx;}
@@ -59,22 +210,228 @@
     border-bottom: 0;
 }
 
+/* 订单相关样式 */
 .orders-box{
-    color: #999;
+    color: #666;
     font-size: 28rpx;
+    margin-bottom: 20rpx;
 }
+
+/* 订单头部 */
+.orders-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 90rpx;
+    line-height: 90rpx;
+    border-bottom: 1rpx solid #e9e9e9;
+    background: #fafafa;
+}
+
+.orders-title {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #333;
+}
+
+.orders-count {
+    margin-left: 10rpx;
+    font-size: 24rpx;
+    color: #999;
+}
+
+/* 空订单状态 */
+.empty-orders {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80rpx 40rpx;
+    background: #fff;
+}
+
+.empty-icon {
+    font-size: 80rpx;
+    margin-bottom: 20rpx;
+}
+
+.empty-text {
+    font-size: 32rpx;
+    color: #666;
+    margin-bottom: 10rpx;
+}
+
+.empty-tip {
+    font-size: 26rpx;
+    color: #999;
+}
+
+/* 订单列表 */
+.orders-list{
+    background: #fff;
+    margin-bottom: 20rpx;
+    border-radius: 12rpx;
+    box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* 订单头部信息 */
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20rpx 30rpx;
+    background: #f8f9fa;
+    border-bottom: 1rpx solid #e9e9e9;
+}
+
+.order-number {
+    font-size: 26rpx;
+    color: #666;
+    flex: 1;
+}
+
+.order-status {
+    padding: 8rpx 16rpx;
+    border-radius: 20rpx;
+    font-size: 24rpx;
+    font-weight: bold;
+}
+
+.status-completed {
+    background: #e8f5e8;
+    color: #52c41a;
+}
+
+.status-shipping {
+    background: #e6f7ff;
+    color: #1890ff;
+}
+
+.status-paid {
+    background: #fff7e6;
+    color: #fa8c16;
+}
+
+.status-unpaid {
+    background: #fff1f0;
+    color: #f5222d;
+}
+
+/* 时间信息 */
+.order-time {
+    padding: 15rpx 30rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+}
+
+.order-time view {
+    line-height: 40rpx;
+    font-size: 26rpx;
+    color: #666;
+    margin-bottom: 5rpx;
+}
+
+.order-time view:last-child {
+    margin-bottom: 0;
+}
+
+/* 商品列表 */
+.order-products {
+    padding: 20rpx 30rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+}
+
+.products-title {
+    font-size: 28rpx;
+    color: #333;
+    margin-bottom: 15rpx;
+    font-weight: bold;
+}
+
+.product-item {
+    display: flex;
+    align-items: center;
+    padding: 10rpx 0;
+    border-bottom: 1rpx solid #f5f5f5;
+}
+
+.product-item:last-child {
+    border-bottom: none;
+}
+
+.product-name {
+    flex: 1;
+    font-size: 28rpx;
+    color: #333;
+}
+
+.product-quantity {
+    margin: 0 20rpx;
+    font-size: 26rpx;
+    color: #666;
+}
+
+.product-price {
+    font-size: 26rpx;
+    color: #ff6b35;
+    font-weight: bold;
+}
+
+/* 配送信息 */
+.order-address {
+    padding: 20rpx 30rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+    background: #fafafa;
+}
+
+.address-info, .address-detail {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 8rpx;
+    font-size: 26rpx;
+    line-height: 36rpx;
+}
+
+.address-info:last-child, .address-detail:last-child {
+    margin-bottom: 0;
+}
+
+.address-label {
+    color: #666;
+    margin-right: 10rpx;
+    min-width: 120rpx;
+}
+
+/* 订单底部 */
+.orders-footer{
+    padding: 20rpx 30rpx;
+    background: #fff;
+}
+
+.total-amount {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.amount-label {
+    font-size: 28rpx;
+    color: #666;
+    margin-right: 10rpx;
+}
+
+.amount-value {
+    font-size: 32rpx;
+    color: #ff6b35;
+    font-weight: bold;
+}
+
+/* 旧样式保留（兼容性） */
 .orders{
     height: 90rpx;
     line-height: 90rpx;
     border-bottom: 1rpx solid #e9e9e9;
     text-align: center;
-}
-.orders-list{
-    padding-left: 30rpx;
-    border-bottom: 20rpx solid #ededed;
-}
-.orders-list:last-child{
-    border-bottom: 0;
 }
 .orders-number{
     height: 90rpx;
@@ -104,13 +461,6 @@
     height: 120rpx;
     line-height: 120rpx;
     color: #b42f2d;
-}
-.orders-footer{
-    height: 60rpx;
-    line-height: 60rpx;
-    color: #2f2f2f;
-    padding:15rpx 30rpx 15rpx 0;
-    text-align: right;
 }
 .orders-footer .orders-btn{
     float: right;
