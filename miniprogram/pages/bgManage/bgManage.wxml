@@ -5,7 +5,7 @@
     <text class='status-value {{connectedDevice ? "connected" : "disconnected"}}'>
       {{connectedDevice ? connectedDevice.name || '已连接' : '未连接'}}
     </text>
-    <button class='control-btn search-btn' bindtap='searchBluetoothDevices' disabled='{{isConnecting}}' wx:if='{{!connectedDevice}}'>
+    <button class='control-btn search-btn' bindtap='showPrinterTypeModal' disabled='{{isConnecting}}' wx:if='{{!connectedDevice}}'>
       {{isConnecting ? '连接中...' : '搜索打印机'}}
     </button>
     <button class='control-btn disconnect-btn' bindtap='disconnectBluetooth' disabled='{{!connectedDevice}}' wx:if='{{connectedDevice}}'>
@@ -57,6 +57,66 @@
     <text class='description-text'>• 检查频率：每30秒检查一次待发货订单</text>
   </view>
 </view>
+
+<!-- 分类打印设置 -->
+<view class='category-print-panel'>
+  <view class='setting-item'>
+    <text class='setting-label'>分类打印：</text>
+    <switch class='setting-switch' checked='{{categoryPrintEnabled}}' bindchange='toggleCategoryPrint'></switch>
+    <text class='setting-status'>{{categoryPrintEnabled ? '已启用' : '已禁用'}}</text>
+  </view>
+  <view class='category-print-status' wx:if='{{categoryPrintEnabled}}'>
+    <view class='printer-status-item'>
+      <text class='printer-label'>🍎 水果打印机：</text>
+      <text class='printer-status {{fruitPrinter.connectedDevice ? "connected" : "disconnected"}}'>
+        {{fruitPrinter.connectedDevice ? fruitPrinter.connectedDevice.name : '未连接'}}
+      </text>
+    </view>
+    <view class='printer-status-item'>
+      <text class='printer-label'>🍱 盒饭打印机：</text>
+      <text class='printer-status {{boxlunchPrinter.connectedDevice ? "connected" : "disconnected"}}'>
+        {{boxlunchPrinter.connectedDevice ? boxlunchPrinter.connectedDevice.name : '未连接'}}
+      </text>
+    </view>
+  </view>
+</view>
+
+<!-- 打印机类型选择弹窗 -->
+<view class='modal-overlay' wx:if='{{showPrinterTypeModal}}' bindtap='closePrinterTypeModal'>
+  <view class='printer-type-modal' catchtap=''>
+    <view class='modal-title'>选择打印机类型</view>
+    <view class='printer-type-options'>
+      <button class='printer-type-btn fruit-btn' bindtap='selectPrinterType' data-type='fruit'>
+        🍎 水果打印机
+      </button>
+      <button class='printer-type-btn boxlunch-btn' bindtap='selectPrinterType' data-type='boxlunch'>
+        🍱 盒饭打印机
+      </button>
+    </view>
+    <button class='modal-cancel-btn' bindtap='closePrinterTypeModal'>取消</button>
+  </view>
+</view>
+
+<!-- 打印机设备选择弹窗 -->
+<view class='modal-overlay' wx:if='{{showPrinterDeviceModal}}' bindtap='closePrinterDeviceModal'>
+  <view class='printer-device-modal' catchtap=''>
+    <view class='modal-title'>选择{{selectedPrinterType === 'fruit' ? '水果' : '盒饭'}}打印机设备</view>
+    <view class='device-list' wx:if='{{availableDevices.length > 0}}'>
+      <view class='device-item' wx:for='{{availableDevices}}' wx:key='deviceId' bindtap='connectSelectedPrinter' data-device='{{item}}'>
+        <text class='device-name'>{{item.name || '未知设备'}}</text>
+        <text class='device-id'>{{item.deviceId}}</text>
+      </view>
+    </view>
+    <view class='no-devices' wx:if='{{availableDevices.length === 0 && !searchingDevices}}'>
+      <text>未找到可用设备</text>
+    </view>
+    <view class='searching-devices' wx:if='{{searchingDevices}}'>
+      <text>正在搜索设备...</text>
+    </view>
+    <button class='modal-cancel-btn' bindtap='closePrinterDeviceModal'>取消</button>
+  </view>
+</view>
+
 
 <!-- 蓝牙设备选择弹窗 -->
 <view class='bluetooth-modal' wx:if='{{showBluetoothModal}}'>
@@ -131,7 +191,9 @@
         <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
         <view>总价：{{item.total}}</view>
         <view>订单内容：</view>
-        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">
+          {{fruitArr[0]}} × {{fruitArr[1]}}
+        </view>
         <view>备注：{{item.message}}</view>
         <view>下单时间：{{item.orderTime}}</view>
       </view>
@@ -160,7 +222,12 @@
         <view>{{item.schoolName}}/{{item.addressItem}}/{{item.detail}}</view>
         <view>总价：{{item.total}}</view>
         <view>订单内容：</view>
-        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">{{fruitArr[0]}} × {{fruitArr[1]}}</view>
+        <view wx:for="{{item.fruitList}}" wx:for-item="fruitArr" wx:key="fruit">
+          {{fruitArr[0]}} × {{fruitArr[1]}}
+          <text class="product-type-tag {{fruitArr[3] == 1 ? 'boxlunch-tag' : 'fruit-tag'}}">
+            {{fruitArr[3] == 1 ? '盒饭' : '水果'}}
+          </text>
+        </view>
         <view>备注：{{item.message}}</view>
         <view>发货时间：{{item.sendingTime}}</view>
       </view>

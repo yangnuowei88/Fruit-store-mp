@@ -15,7 +15,28 @@ Page({
     searchPhone: '',
     searchResult: [],
     showNoResult: false,
-    // 蓝牙打印机相关
+    // 双打印机管理
+    fruitPrinter: {
+      enabled: false,
+      devices: [],
+      connectedDevice: null,
+      isConnecting: false,
+      characteristic: null
+    },
+    boxlunchPrinter: {
+      enabled: false,
+      devices: [],
+      connectedDevice: null,
+      isConnecting: false,
+      characteristic: null
+    },
+    // 新增弹窗状态
+    showPrinterTypeModal: false,      // 打印机类型选择弹窗
+    showPrinterDeviceModal: false,    // 打印机设备选择弹窗
+    selectedPrinterType: '',          // 当前选择的打印机类型 'fruit' 或 'boxlunch'
+    availableDevices: [],             // 搜索到的可用设备列表
+    searchingDevices: false,          // 是否正在搜索设备
+    // 蓝牙打印机相关（保持兼容性）
     bluetoothEnabled: false,
     bluetoothDevices: [],
     connectedDevice: null,
@@ -31,6 +52,8 @@ Page({
     autoShippingEnabled: true,  // 是否启用自动发货
     autoShippingInterval: null, // 自动发货检查定时器
     autoPrintEnabled: true,     // 是否启用自动打印
+    // 分类打印相关
+    categoryPrintEnabled: true, // 是否启用分类打印
   },
 
   /**
@@ -271,9 +294,15 @@ Page({
         success: (res) => {
           console.log('弹窗回调成功，用户选择:', res);
           if (res.confirm && orderData) {
-            // 打印订单
+            // 打印订单 - 根据分类打印设置选择打印方式
             console.log('用户选择打印订单');
-            that.printOrderWithStatus(orderData);
+            if (that.data.categoryPrintEnabled) {
+              // 分类打印
+              that.printOrderByCategory(orderData);
+            } else {
+              // 传统打印
+              that.printOrderWithStatus(orderData);
+            }
           } else {
             console.log('用户选择直接发货');
             that.updateOrderToShipping(orderId);
@@ -413,19 +442,27 @@ Page({
       success: function(res) {
         console.log('连接成功', res);
         const device = that.data.bluetoothDevices.find(d => d.deviceId === deviceId);
-        that.setData({
-          connectedDevice: device,
-          isConnecting: false,
-          showBluetoothModal: false
-        });
         
-        wx.showToast({
-          title: '连接成功',
-          icon: 'success'
-        });
+        // 如果启用了分类打印且选择了打印机类型，则连接到对应的打印机
+        if (that.data.categoryPrintEnabled && that.data.selectedPrinterType) {
+          const type = that.data.selectedPrinterType;
+          that.connectPrinterByType(type, device);
+        } else {
+          // 否则使用原始的连接逻辑
+          that.setData({
+            connectedDevice: device,
+            isConnecting: false,
+            showBluetoothModal: false
+          });
+          
+          wx.showToast({
+            title: '连接成功',
+            icon: 'success'
+          });
 
-        // 获取服务和特征值
-        that.getBLEDeviceServices(deviceId);
+          // 获取服务和特征值
+          that.getBLEDeviceServices(deviceId);
+        }
       },
       fail: function(err) {
         console.log('连接失败', err);
@@ -553,6 +590,493 @@ Page({
       title: '模拟打印机已断开',
       icon: 'success'
     });
+  },
+
+  // 双打印机管理函数
+  // 显示打印机类型选择弹窗
+  showPrinterTypeModal() {
+    // 先初始化蓝牙适配器
+    const that = this;
+    wx.openBluetoothAdapter({
+      success: function(res) {
+        console.log('蓝牙适配器初始化成功');
+        that.setData({
+          showPrinterTypeModal: true,
+          'fruitPrinter.enabled': true,
+          'boxlunchPrinter.enabled': true
+        });
+      },
+      fail: function(err) {
+        console.error('蓝牙适配器初始化失败:', err);
+        wx.showToast({
+          title: '请开启蓝牙',
+          icon: 'none'
+        });
+      }
+    });
+  },
+
+  // 关闭打印机类型选择弹窗
+  closePrinterTypeModal() {
+    this.setData({
+      showPrinterTypeModal: false
+    });
+  },
+
+  // 选择打印机类型
+  selectPrinterType(e) {
+    const type = e.currentTarget.dataset.type;
+    this.setData({
+      selectedPrinterType: type,
+      showPrinterTypeModal: false
+    });
+    
+    // 如果启用了分类打印，使用双打印机逻辑
+    if (this.data.categoryPrintEnabled) {
+      this.setData({
+        showPrinterDeviceModal: true,
+        searchingDevices: true,
+        availableDevices: []
+      });
+      // 开始搜索设备
+      this.searchDevicesForType();
+    } else {
+      // 否则使用原始的蓝牙搜索逻辑，但记住选择的类型用于后续连接
+      this.searchBluetoothDevices();
+    }
+  },
+
+  // 关闭打印机设备选择弹窗
+  closePrinterDeviceModal() {
+    this.setData({
+      showPrinterDeviceModal: false,
+      selectedPrinterType: '',
+      availableDevices: [],
+      searchingDevices: false
+    });
+    // 停止搜索
+    wx.stopBluetoothDevicesDiscovery({});
+  },
+
+  // 为指定类型搜索设备
+  searchDevicesForType() {
+    const that = this;
+    
+    that.setData({
+      searchingDevices: true,
+      availableDevices: []
+    });
+
+    wx.startBluetoothDevicesDiscovery({
+      success: function(res) {
+        console.log('开始搜索蓝牙设备');
+        
+        // 3秒后获取搜索结果
+        setTimeout(() => {
+          wx.getBluetoothDevices({
+            success: function(res) {
+              const devices = res.devices.filter(device => 
+                device.name && 
+                device.name.length > 0 && 
+                device.RSSI > -80 // 过滤信号较弱的设备
+              );
+              
+              that.setData({
+                availableDevices: devices,
+                searchingDevices: false
+              });
+              
+              if (devices.length === 0) {
+                wx.showToast({
+                  title: '未发现设备',
+                  icon: 'none'
+                });
+              }
+            },
+            fail: function(err) {
+              console.error('获取蓝牙设备失败:', err);
+              that.setData({
+                searchingDevices: false
+              });
+            }
+          });
+        }, 3000);
+      },
+      fail: function(err) {
+        console.error('搜索蓝牙设备失败:', err);
+        that.setData({
+          searchingDevices: false
+        });
+        wx.showToast({
+          title: '搜索失败',
+          icon: 'none'
+        });
+      }
+    });
+  },
+
+  // 连接选中的打印机
+  connectSelectedPrinter(e) {
+    const device = e.currentTarget.dataset.device;
+    const type = this.data.selectedPrinterType;
+    
+    if (!type || !device) {
+      wx.showToast({
+        title: '参数错误',
+        icon: 'none'
+      });
+      return;
+    }
+
+    // 关闭弹窗
+    this.setData({
+      showPrinterDeviceModal: false
+    });
+
+    // 连接打印机
+    this.connectPrinterByType(type, device);
+  },
+
+  // 通用打印机连接函数
+  connectPrinterByType(type, device) {
+    const that = this;
+    const printerKey = type + 'Printer';
+    
+    that.setData({
+      [`${printerKey}.isConnecting`]: true
+    });
+
+    wx.createBLEConnection({
+      deviceId: device.deviceId,
+      success: function(res) {
+        console.log(`${type}打印机连接成功:`, res);
+        that.getPrinterServices(type, device);
+      },
+      fail: function(err) {
+        console.error(`${type}打印机连接失败:`, err);
+        that.setData({
+          [`${printerKey}.isConnecting`]: false
+        });
+        wx.showToast({
+          title: '连接失败',
+          icon: 'none'
+        });
+      }
+    });
+  },
+
+  // 获取打印机服务
+  getPrinterServices(type, device) {
+    const that = this;
+    const printerKey = type + 'Printer';
+    
+    wx.getBLEDeviceServices({
+      deviceId: device.deviceId,
+      success: function(res) {
+        console.log(`${type}打印机服务:`, res.services);
+        const serviceId = res.services[0].uuid;
+        that.getPrinterCharacteristics(type, device, serviceId);
+      },
+      fail: function(err) {
+        console.error(`获取${type}打印机服务失败:`, err);
+        that.setData({
+          [`${printerKey}.isConnecting`]: false
+        });
+      }
+    });
+  },
+
+  // 获取打印机特征值
+  getPrinterCharacteristics(type, device, serviceId) {
+    const that = this;
+    const printerKey = type + 'Printer';
+    
+    wx.getBLEDeviceCharacteristics({
+      deviceId: device.deviceId,
+      serviceId: serviceId,
+      success: function(res) {
+        console.log(`${type}打印机特征值:`, res.characteristics);
+        const writeCharacteristic = res.characteristics.find(char => char.properties.write);
+        
+        if (writeCharacteristic) {
+          const characteristic = {
+            deviceId: device.deviceId,
+            serviceId: serviceId,
+            characteristicId: writeCharacteristic.uuid
+          };
+          
+          that.setData({
+            [`${printerKey}.connectedDevice`]: {
+              deviceId: device.deviceId,
+              name: device.name || `${type === 'fruit' ? '水果' : '盒饭'}打印机`
+            },
+            [`${printerKey}.characteristic`]: characteristic,
+            [`${printerKey}.isConnecting`]: false
+          });
+
+          // 保存到本地存储
+          wx.setStorageSync(`${type}PrinterCharacteristic`, characteristic);
+          wx.setStorageSync(`${type}PrinterDevice`, {
+            deviceId: device.deviceId,
+            name: device.name || `${type === 'fruit' ? '水果' : '盒饭'}打印机`
+          });
+          
+          wx.showToast({
+            title: `${type === 'fruit' ? '水果' : '盒饭'}打印机已连接`,
+            icon: 'success'
+          });
+        }
+      },
+      fail: function(err) {
+        console.error(`获取${type}打印机特征值失败:`, err);
+        that.setData({
+          [`${printerKey}.isConnecting`]: false
+        });
+      }
+    });
+  },
+
+  // 断开所有打印机连接
+  disconnectAllPrinters() {
+    const that = this;
+    
+    wx.showModal({
+      title: '确认断开',
+      content: '确定要断开所有打印机连接吗？',
+      success: function(res) {
+        if (res.confirm) {
+          // 断开水果打印机
+          if (that.data.fruitPrinter.connectedDevice) {
+            that.disconnectPrinterByType('fruit');
+          }
+          
+          // 断开盒饭打印机
+          if (that.data.boxlunchPrinter.connectedDevice) {
+            that.disconnectPrinterByType('boxlunch');
+          }
+        }
+      }
+    });
+  },
+
+  // 断开指定类型打印机
+  disconnectPrinterByType(type) {
+    const that = this;
+    const printerKey = type + 'Printer';
+    const connectedDevice = that.data[printerKey].connectedDevice;
+    
+    if (connectedDevice) {
+      wx.closeBLEConnection({
+        deviceId: connectedDevice.deviceId,
+        success: function() {
+          that.setData({
+            [`${printerKey}.connectedDevice`]: null,
+            [`${printerKey}.characteristic`]: null
+          });
+          wx.removeStorageSync(`${type}PrinterCharacteristic`);
+          wx.removeStorageSync(`${type}PrinterDevice`);
+          wx.showToast({
+            title: `${type === 'fruit' ? '水果' : '盒饭'}打印机已断开`,
+            icon: 'success'
+          });
+        },
+        fail: function(err) {
+          console.error(`断开${type}打印机失败:`, err);
+        }
+      });
+    }
+  },
+
+  // 切换分类打印模式
+  toggleCategoryPrint(e) {
+    const enabled = e.detail.value;
+    this.setData({
+      categoryPrintEnabled: enabled
+    });
+    wx.setStorageSync('categoryPrintEnabled', enabled);
+    
+    wx.showToast({
+      title: enabled ? '已启用分类打印' : '已关闭分类打印',
+      icon: 'success'
+    });
+  },
+
+  // 分类打印订单
+  printOrderByCategory(orderData) {
+    console.log('🖨️ 开始分类打印订单:', orderData._id);
+    
+    if (!this.data.categoryPrintEnabled) {
+      // 如果未启用分类打印，使用原有打印方式
+      this.printOrder(orderData);
+      return;
+    }
+
+    // 按商品类型分组
+    const fruitItems = [];
+    const boxlunchItems = [];
+    
+    if (orderData.fruitList && Array.isArray(orderData.fruitList)) {
+      orderData.fruitList.forEach(item => {
+        // item格式: [商品名, 数量, 价格, 类型]
+        const productType = item[3] || 0; // 默认为水果
+        if (productType === 0) {
+          fruitItems.push(item);
+        } else if (productType === 1) {
+          boxlunchItems.push(item);
+        }
+      });
+    }
+
+    console.log('水果商品:', fruitItems);
+    console.log('盒饭商品:', boxlunchItems);
+
+    // 分别打印不同类型的商品
+    if (fruitItems.length > 0) {
+      this.printCategoryOrder(orderData, fruitItems, 'fruit');
+    }
+    
+    if (boxlunchItems.length > 0) {
+      this.printCategoryOrder(orderData, boxlunchItems, 'boxlunch');
+    }
+
+    if (fruitItems.length === 0 && boxlunchItems.length === 0) {
+      wx.showToast({
+        title: '订单无有效商品',
+        icon: 'none'
+      });
+    }
+  },
+
+  // 打印指定类型的订单
+  printCategoryOrder(orderData, items, category) {
+    const printerKey = category + 'Printer';
+    const characteristic = this.data[printerKey].characteristic;
+    
+    if (!characteristic) {
+      wx.showToast({
+        title: `请先连接${category === 'fruit' ? '水果' : '盒饭'}打印机`,
+        icon: 'none'
+      });
+      return;
+    }
+
+    try {
+      // 创建分类订单数据
+      const categoryOrderData = {
+        ...orderData,
+        fruitList: items,
+        categoryType: category
+      };
+
+      const printContent = this.formatCategoryOrderForPrint(categoryOrderData);
+      console.log(`准备打印${category}内容:`, printContent);
+      
+      const buffer = this.stringToArrayBuffer(printContent);
+
+      // 发送到对应的打印机
+      this.sendDataInChunksWithCallback(buffer, characteristic, () => {
+        console.log(`✅ ${category}订单打印成功`);
+        wx.showToast({
+          title: `${category === 'fruit' ? '水果' : '盒饭'}订单打印成功`,
+          icon: 'success'
+        });
+      }, (error) => {
+        console.error(`❌ ${category}订单打印失败:`, error);
+        wx.showToast({
+          title: `${category === 'fruit' ? '水果' : '盒饭'}订单打印失败`,
+          icon: 'none'
+        });
+      });
+    } catch (error) {
+      console.error(`${category}打印过程出错:`, error);
+      wx.showToast({
+        title: '打印出错',
+        icon: 'none'
+      });
+    }
+  },
+
+  // 格式化分类订单打印内容
+  formatCategoryOrderForPrint(order) {
+    const categoryName = order.categoryType === 'fruit' ? '水果订单' : '盒饭订单';
+    
+    let content = '';
+    
+    // 打印机初始化命令
+    content += '\x1B\x40'; // ESC @ - 初始化打印机
+    
+    // 设置字符集为GBK
+    content += '\x1C\x26'; // FS & - 选择字符代码表
+    content += '\x1C\x43\x01'; // FS C 1 - 选择GBK字符集
+    
+    // 标题 - 居中，加粗，放大
+    content += '\x1B\x61\x01'; // ESC a 1 - 居中对齐
+    content += '\x1B\x45\x01'; // ESC E 1 - 加粗开启
+    content += '\x1D\x21\x11'; // GS ! 17 - 字符放大2倍
+    content += `${categoryName}\n`;
+    content += '\x1D\x21\x00'; // GS ! 0 - 恢复正常大小
+    content += '\x1B\x45\x00'; // ESC E 0 - 加粗关闭
+    content += '\x1B\x61\x00'; // ESC a 0 - 左对齐
+    
+    // 分隔线
+    content += '================================\n';
+    
+    // 订单信息
+    content += `订单号: ${order.out_trade_no || order._id}\n`;
+    content += `下单时间: ${order.time || ''}\n`;
+    
+    // 收货信息
+    if (order.address) {
+      content += `收货人: ${order.address.userName || ''}\n`;
+      content += `电话: ${order.address.telNumber || ''}\n`;
+      content += `地址: ${order.address.provinceName || ''}${order.address.cityName || ''}${order.address.countyName || ''}${order.address.detailInfo || ''}\n`;
+    }
+    
+    content += '================================\n';
+    
+    // 商品列表标题
+    content += '\x1B\x45\x01'; // 加粗
+    content += '商品清单:\n';
+    content += '\x1B\x45\x00'; // 取消加粗
+    
+    // 商品列表
+    let totalAmount = 0;
+    if (order.fruitList && Array.isArray(order.fruitList)) {
+      order.fruitList.forEach((item, index) => {
+        const name = item[0] || '';
+        const quantity = item[1] || 0;
+        const price = parseFloat(item[2]) || 0;
+        const subtotal = quantity * price;
+        totalAmount += subtotal;
+        
+        content += `${index + 1}. ${name}\n`;
+        content += `   数量: ${quantity} x ${price.toFixed(2)}元 = ${subtotal.toFixed(2)}元\n`;
+      });
+    }
+    
+    content += '--------------------------------\n';
+    
+    // 总计
+    content += '\x1B\x45\x01'; // 加粗
+    content += `${categoryName}总计: ${totalAmount.toFixed(2)}元\n`;
+    content += '\x1B\x45\x00'; // 取消加粗
+    
+    content += '================================\n';
+    
+    // 备注
+    if (order.remark) {
+      content += `备注: ${order.remark}\n`;
+      content += '--------------------------------\n';
+    }
+    
+    // 打印时间
+    content += `打印时间: ${app.CurrentTime_show()}\n`;
+    
+    // 结束 - 换行并切纸
+    content += '\n\n\n';
+    content += '\x1D\x56\x00'; // GS V 0 - 切纸
+    
+    return content;
   },
 
   // 检查模拟打印机连接状态
@@ -1341,31 +1865,39 @@ Page({
       return
     }
 
-    const characteristic = wx.getStorageSync('printerCharacteristic')
-    if (!characteristic) {
-      console.log('打印机未连接，跳过打印')
-      this.updateOrderToShipping(order._id)
-      return
-    }
-
-    // 先检查蓝牙连接状态
-    this.checkBluetoothConnection(characteristic, (isConnected) => {
-      if (!isConnected) {
-        console.log('🔄 蓝牙连接已断开，尝试重连...')
-        this.attemptReconnectBluetooth(characteristic, (reconnected) => {
-          if (reconnected) {
-            console.log('✅ 蓝牙重连成功，继续打印')
-            this.executeAutoPrint(order, characteristic)
-          } else {
-            console.log('❌ 蓝牙重连失败，跳过打印')
-            this.updateOrderToShipping(order._id)
-          }
-        })
-      } else {
-        console.log('✅ 蓝牙连接正常，开始自动打印')
-        this.executeAutoPrint(order, characteristic)
+    // 根据分类打印设置选择打印方式
+    if (this.data.categoryPrintEnabled) {
+      // 分类打印
+      console.log('🖨️ 使用分类打印模式')
+      this.printOrderByCategory(order)
+    } else {
+      // 传统打印
+      const characteristic = wx.getStorageSync('printerCharacteristic')
+      if (!characteristic) {
+        console.log('打印机未连接，跳过打印')
+        this.updateOrderToShipping(order._id)
+        return
       }
-    })
+
+      // 先检查蓝牙连接状态
+      this.checkBluetoothConnection(characteristic, (isConnected) => {
+        if (!isConnected) {
+          console.log('🔄 蓝牙连接已断开，尝试重连...')
+          this.attemptReconnectBluetooth(characteristic, (reconnected) => {
+            if (reconnected) {
+              console.log('✅ 蓝牙重连成功，继续打印')
+              this.executeAutoPrint(order, characteristic)
+            } else {
+              console.log('❌ 蓝牙重连失败，跳过打印')
+              this.updateOrderToShipping(order._id)
+            }
+          })
+        } else {
+          console.log('✅ 蓝牙连接正常，开始自动打印')
+          this.executeAutoPrint(order, characteristic)
+        }
+      })
+    }
   },
 
   // 执行自动打印操作
@@ -1662,6 +2194,13 @@ Page({
     
     // 检查并显示打印机连接状态
     this.checkPrinterConnectionStatus()
+    this.checkDualPrinterStatus() // 检查双打印机状态
+    
+    // 从本地存储加载分类打印设置
+    const categoryPrintEnabled = wx.getStorageSync('categoryPrintEnabled') || false;
+    this.setData({
+      categoryPrintEnabled: categoryPrintEnabled
+    });
     
     this.startOrderMonitoring()
     this.startAutoShipping() // 启动自动发货检查
@@ -1699,6 +2238,51 @@ Page({
       this.setData({
         connectedDevice: null
       })
+    }
+  },
+
+  // 检查双打印机连接状态
+  checkDualPrinterStatus() {
+    // 检查水果打印机
+    const fruitCharacteristic = wx.getStorageSync('fruitPrinterCharacteristic');
+    const fruitDevice = wx.getStorageSync('fruitPrinterDevice');
+    if (fruitCharacteristic && fruitDevice) {
+      this.setData({
+        'fruitPrinter.connectedDevice': fruitDevice,
+        'fruitPrinter.characteristic': fruitCharacteristic
+      });
+      console.log('🍎 检测到水果打印机连接:', fruitDevice.name);
+    } else if (fruitCharacteristic) {
+      // 兼容旧版本存储格式
+      this.setData({
+        'fruitPrinter.connectedDevice': {
+          deviceId: fruitCharacteristic.deviceId,
+          name: '水果打印机'
+        },
+        'fruitPrinter.characteristic': fruitCharacteristic
+      });
+      console.log('🍎 检测到水果打印机连接（兼容模式）');
+    }
+
+    // 检查盒饭打印机
+    const boxlunchCharacteristic = wx.getStorageSync('boxlunchPrinterCharacteristic');
+    const boxlunchDevice = wx.getStorageSync('boxlunchPrinterDevice');
+    if (boxlunchCharacteristic && boxlunchDevice) {
+      this.setData({
+        'boxlunchPrinter.connectedDevice': boxlunchDevice,
+        'boxlunchPrinter.characteristic': boxlunchCharacteristic
+      });
+      console.log('🍱 检测到盒饭打印机连接:', boxlunchDevice.name);
+    } else if (boxlunchCharacteristic) {
+      // 兼容旧版本存储格式
+      this.setData({
+        'boxlunchPrinter.connectedDevice': {
+          deviceId: boxlunchCharacteristic.deviceId,
+          name: '盒饭打印机'
+        },
+        'boxlunchPrinter.characteristic': boxlunchCharacteristic
+      });
+      console.log('🍱 检测到盒饭打印机连接（兼容模式）');
     }
   },
 

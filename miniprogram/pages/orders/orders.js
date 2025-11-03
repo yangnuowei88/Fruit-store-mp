@@ -181,7 +181,10 @@ Page({
 
       var tmpList = []
       that.data.orders.forEach((val,idx,obj)=>{
-        tmpList.push([val.name, val.num, val.price])
+        // 将商品类型信息也包含到订单中：[商品名, 数量, 价格, 类型]
+        // myClass: 0=水果, 1=盒饭
+        const productType = val.myClass || 0  // 默认为水果类型
+        tmpList.push([val.name, val.num, val.price, productType])
       })
       order_master['fruitList'] = tmpList
       order_master['total'] = that.data.total
@@ -338,17 +341,14 @@ Page({
 
     var tmpList = []
     that.data.orders.forEach((val,idx,obj)=>{
-      tmpList.push({
-        name: val.name,
-        num: val.num, 
-        price: val.price,
-        unit: val.unit,
-        imgUrl: val.imgUrl
-      })
+      // 将商品类型信息也包含到订单中：[商品名, 数量, 价格, 类型]
+      // myClass: 0=水果, 1=盒饭
+      const productType = val.myClass || 0  // 默认为水果类型
+      tmpList.push([val.name, val.num, val.price, productType])
     })
-    order_master['orderItems'] = tmpList  // 使用orderItems字段名
-    order_master['totalPrice'] = that.data.total  // 使用totalPrice字段名
-    order_master['_openid'] = that.data.openid
+    order_master['fruitList'] = tmpList  // 使用统一的fruitList字段名
+    order_master['total'] = that.data.total  // 使用统一的total字段名
+    order_master['openid'] = that.data.openid
     order_master['out_trade_no'] = out_trade_no
     order_master['orderNumber'] = orderNumber
 

@@ -1,5 +1,24 @@
 Page {background: #FFF5EE}
 
+/* 商品类型标签样式 */
+.product-type-tag {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  margin-left: 10rpx;
+  border-radius: 12rpx;
+  font-size: 20rpx;
+  color: white;
+  font-weight: bold;
+}
+
+.fruit-tag {
+  background-color: #4CAF50;
+}
+
+.boxlunch-tag {
+  background-color: #FF9800;
+}
+
 /* 蓝牙打印机控制面板样式 */
 .bluetooth-panel {
   background: white;
@@ -137,6 +156,273 @@ Page {background: #FFF5EE}
   display: flex;
   flex-direction: column;
   box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+/* 分类打印设置面板样式 */
+.category-print-panel {
+  background: white;
+  margin: 20rpx;
+  padding: 30rpx;
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+.category-print-status {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.printer-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15rpx 0;
+}
+
+.printer-label {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.printer-status {
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.printer-status.connected {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.printer-status.disconnected {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+/* 打印机类型选择弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.printer-type-modal {
+  width: 80%;
+  max-width: 500rpx;
+  background: white;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 40rpx;
+}
+
+.printer-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.printer-type-btn {
+  height: 80rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  border: none;
+}
+
+.fruit-btn {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+  color: #333;
+}
+
+.boxlunch-btn {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  color: #333;
+}
+
+.modal-cancel-btn {
+  width: 100%;
+  height: 70rpx;
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+
+/* 打印机设备选择弹窗 */
+.printer-device-modal {
+  width: 80%;
+  max-width: 600rpx;
+  background: white;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  text-align: center;
+}
+
+.device-list {
+  max-height: 400rpx;
+  overflow-y: auto;
+  margin: 30rpx 0;
+}
+
+.device-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  margin-bottom: 15rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.3s ease;
+}
+
+.device-item:active {
+  background: #e9ecef;
+  border-color: #667eea;
+}
+
+.device-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.device-id {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.no-devices, .searching-devices {
+  text-align: center;
+  padding: 60rpx 0;
+  color: #666;
+  font-size: 28rpx;
+}
+
+/* 打印机设备选择弹窗 */
+.printer-device-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+}
+
+.searching-status {
+  text-align: center;
+  padding: 60rpx 0;
+  color: #666;
+  font-size: 28rpx;
+}
+
+.no-devices {
+  text-align: center;
+  padding: 60rpx 0;
+}
+
+.no-devices text:first-child {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+}
+
+.hint {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.device-list {
+  max-height: 400rpx;
+  overflow-y: auto;
+}
+
+.device-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25rpx;
+  border: 1rpx solid #e9ecef;
+  border-radius: 8rpx;
+  margin-bottom: 15rpx;
+  background: #fff;
+  transition: all 0.3s ease;
+}
+
+.device-item:active {
+  background: #f8f9fa;
+  border-color: #667eea;
+}
+
+.device-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.device-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.device-id {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.device-signal {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+  padding: 30rpx;
+  background: #f8f9fa;
+  border-top: 1rpx solid #e9ecef;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.search-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .panel-title {
