@@ -392,7 +392,7 @@ Page({
             // 邀请码验证失败
             wx.showModal({
               title: '邀请码错误',
-              content: '邀请码必须是4位数字且以36结尾，请重新输入',
+              content: '邀请码必须是4位数字，请重新输入',
               showCancel: true,
               confirmText: '重新输入',
               cancelText: '取消',
