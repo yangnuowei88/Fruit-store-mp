@@ -1,0 +1,72 @@
+[
+  {
+    "name": "红烧肉盒饭",
+    "price": 15.80,
+    "unit": "份",
+    "imgUrl": "https://img.alicdn.com/imgextra/i1/725677994/O1CN01boxlunch1_!!725677994.jpg",
+    "detail": "香嫩红烧肉配优质大米，搭配时令蔬菜，营养均衡，口感丰富",
+    "fruitId": "boxlunch_001",
+    "myClass": "1",
+    "onShow": true,
+    "category": "盒饭",
+    "stock": 50,
+    "time": "2024-01-16",
+    "service": "热饭配送，30分钟内送达"
+  },
+  {
+    "name": "宫保鸡丁盒饭",
+    "price": 14.50,
+    "unit": "份", 
+    "imgUrl": "https://img.alicdn.com/imgextra/i2/725677994/O1CN01chicken1_!!725677994.jpg",
+    "detail": "经典川菜宫保鸡丁，鸡肉嫩滑，花生香脆，配米饭和小菜",
+    "fruitId": "boxlunch_002",
+    "myClass": "1",
+    "onShow": true,
+    "category": "盒饭",
+    "stock": 45,
+    "time": "2024-01-16",
+    "service": "热饭配送，30分钟内送达"
+  },
+  {
+    "name": "糖醋里脊盒饭",
+    "price": 16.20,
+    "unit": "份",
+    "imgUrl": "https://img.alicdn.com/imgextra/i3/725677994/O1CN01sweet1_!!725677994.jpg", 
+    "detail": "酸甜可口的糖醋里脊，外酥内嫩，搭配蒸蛋和青菜，老少皆宜",
+    "fruitId": "boxlunch_003",
+    "myClass": "1",
+    "onShow": true,
+    "category": "盒饭",
+    "stock": 40,
+    "time": "2024-01-16",
+    "service": "热饭配送，30分钟内送达"
+  },
+  {
+    "name": "麻婆豆腐盒饭",
+    "price": 12.80,
+    "unit": "份",
+    "imgUrl": "https://img.alicdn.com/imgextra/i4/725677994/O1CN01tofu1_!!725677994.jpg",
+    "detail": "经典川菜麻婆豆腐，豆腐嫩滑，麻辣鲜香，素食主义者首选",
+    "fruitId": "boxlunch_004", 
+    "myClass": "1",
+    "onShow": true,
+    "category": "盒饭",
+    "stock": 35,
+    "time": "2024-01-16",
+    "service": "热饭配送，30分钟内送达"
+  },
+  {
+    "name": "黄焖鸡米饭",
+    "price": 17.50,
+    "unit": "份",
+    "imgUrl": "https://img.alicdn.com/imgextra/i5/725677994/O1CN01braised1_!!725677994.jpg",
+    "detail": "鸡肉鲜嫩，汤汁浓郁，配土豆和青椒，一份满足的正餐",
+    "fruitId": "boxlunch_005",
+    "myClass": "1", 
+    "onShow": true,
+    "category": "盒饭",
+    "stock": 30,
+    "time": "2024-01-16",
+    "service": "热饭配送，30分钟内送达"
+  }
+]

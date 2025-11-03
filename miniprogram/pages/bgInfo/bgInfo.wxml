@@ -1,7 +1,7 @@
 <view class='bgInfo'>
 <!-- 选项卡 -->
 <view class='tapCard'>
-  <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>添加水果</view>
+  <view class="addCard {{cardNum === 1 ? 'tapOn':'tapOff'}} " bindtap='tapTo1'>添加商品</view>
   <view class="delCard {{cardNum === 2 ? 'tapOn':'tapOff'}} " bindtap='tapTo2'>上架修改</view>
   <view class="statistics {{cardNum === 4 ? 'tapOn':'tapOff'}} " bindtap='tapTo4'>营业统计</view>
 </view>
@@ -18,7 +18,7 @@
   <view class='theList'>
 
     <!-- 线上水果 -->
-    <view class="weui-cells__title">线上水果</view>
+    <view class="weui-cells__title">线上商品</view>
     <view class="weui-cells weui-cells_after-title">
       <view wx:for="{{manageList}}" wx:key="time" class='listItem' wx:if="{{item.onShow}}">
         <view>{{item.name}}</view>
@@ -30,7 +30,7 @@
     </view>
 
     <!-- 线下水果 -->
-    <view class="weui-cells__title">线下水果</view>
+    <view class="weui-cells__title">线下商品</view>
     <view class="weui-cells weui-cells_after-title">
       <view wx:for="{{manageList}}" wx:key="time" class='listItem' wx:if="{{!item.onShow}}">
         <view>{{item.name}}</view>
@@ -50,7 +50,7 @@
 
   <!-- 删除水果 -->
   <view class='myInput'>
-    <input placeholder='输入要删除水果的名称' bindinput='getDelFruitId'></input>
+    <input placeholder='输入要删除商品的名称' bindinput='getDelFruitId'></input>
   </view>
   <view bindtap='deleteFruit' class='downBtn'>删除</view>
 
@@ -64,19 +64,29 @@
 <view class="weui-cells__title">添加信息</view>
 
 <view class="weui-cells weui-cells_after-title">
+  <!-- 商品类型 -->
+  <view class="weui-cell weui-cell_input">
+    <view class="weui-cell__bd cell-title">商品类型</view>
+    <view class="weui-cell__ft">
+      <picker range="{{productType_Arr}}" value="{{productType}}" bindchange="getProductType">
+        <view class="weui-input">{{productType_Arr[productType]||'请选择商品类型'}}</view>
+      </picker>
+    </view>
+  </view>
   <!-- 水果编号 -->
   <view class="weui-cell weui-cell_input">
     <view class="weui-cell__hd">
-      <view class="weui-label">水果编号</view>
+      <view class="weui-label">商品编号</view>
     </view>
     <view class="weui-cell__bd weui-cell__ft">
       <input class="weui-input" type="digit" bindinput='getFruitID'/>
     </view>
   </view>
+
   <!-- 水果名称 -->
   <view class="weui-cell weui-cell_input">
     <view class="weui-cell__hd">
-      <view class="weui-label">水果名称</view>
+      <view class="weui-label">商品名称</view>
     </view>
     <view class="weui-cell__bd weui-cell__ft">
       <input class="weui-input" bindinput='getName'/>
@@ -140,7 +150,7 @@
   <view class="weui-cell">
     <view class="weui-uploader__hd">
       <view class="section">
-        <textarea bindblur="getInfoText" auto-height placeholder="介绍水果的详细信息" style="min-height: 250rpx;"  />
+        <textarea bindblur="getInfoText" auto-height placeholder="介绍商品的详细信息" style="min-height: 250rpx;"  />
       </view>
     </view>
   </view>
@@ -152,15 +162,6 @@
 <view class="weui-cells__title">优惠信息</view>
 
 <view class="weui-cells weui-cells_after-title">
-  <!-- 今日特惠 -->
-  <view class="weui-cell weui-cell_input">
-    <view class="weui-cell__bd cell-title">今日特惠</view>
-    <view class="weui-cell__ft">
-      <picker range="{{myClass_Arr}}" value="{{myClass}}" bindchange="getMyClass">
-        <view class="weui-input">{{myClass_Arr[myClass]||'否'}}</view>
-      </picker>
-    </view>
-  </view>
   <!-- 店主推荐 -->
   <view class="weui-cell weui-cell_input">
     <view class="weui-cell__bd cell-title">店主推荐</view>

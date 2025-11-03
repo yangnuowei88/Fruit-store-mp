@@ -10,7 +10,7 @@ Page({
     fruitInfo: [],
     typeCat: [
       { id: 0, name: "美味鲜果" },
-      { id: 1, name: "今日特惠" },
+      { id: 1, name: "精品盒饭" },
       { id: 2, name: "新鲜上架" },
       { id: 3, name: "店主推荐" },
     ],
@@ -299,9 +299,9 @@ Page({
           }
         )
         break;
-      // 今日特惠
+      // 精品盒饭
       case '1':
-        app.getInfoWhere('fruit-board', {myClass:'1'},
+        app.getInfoWhere('fruit-board', {myClass:1},
           e => {
             getCurrentPages()["0"].setData({
               fruitInfo: e.data

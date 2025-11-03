@@ -22,13 +22,14 @@ Page({
     price:null,   //价格
     unit:null,    //单位
     detail:"",    //描述
-    myClass:0,    //今日特惠
+    myClass:0,    //商品分类（0=水果，1=盒饭）
     recommend:0,  //店主推荐
     onShow:true,  //上架
+    productType: null, //商品类型选择索引
 
-    myClass_Arr: [
-      '否',
-      '是'
+    productType_Arr: [
+      '水果',
+      '盒饭'
     ],
     recommend_Arr: [
       '否',
@@ -125,11 +126,11 @@ Page({
     this.data.detail = e.detail.value;
   },
 
-  // 今日特惠
-  getMyClass: function (e) {
-    var that = this
+  // 获取商品类型
+  getProductType: function (e) {
     this.setData({
-      myClass: e.detail.value.toString()
+      productType: parseInt(e.detail.value),
+      myClass: parseInt(e.detail.value) // 根据商品类型设置myClass：水果=0，盒饭=1
     })
   },
 
@@ -174,7 +175,8 @@ Page({
   // 添加水果信息表单
   addFruitInfo: function(e){
     const that = this
-    if (that.data.name && that.data.price){
+    // 验证必填项：商品名称、价格、商品类型
+    if (that.data.name && that.data.price && that.data.productType !== null){
       new Promise((resolve, reject) => {
         const { fruitID, name, price, unit, detail, myClass, recommend, tmpUrlArr, onShow } = that.data
         const theInfo = { fruitID, name, price, unit, detail, myClass, recommend, tmpUrlArr, onShow }
@@ -185,8 +187,9 @@ Page({
         // 上传所有信息
         app.addRowToSet('fruit-board', theInfo, e => {
           console.log(e)
+          const productTypeName = that.data.productType_Arr[that.data.productType]
           wx.showToast({
-            title: '添加成功',
+            title: `${productTypeName}添加成功`,
           })
         })
         app.getInfoByOrder('fruit-board', 'time', 'desc',
@@ -199,8 +202,14 @@ Page({
       })
     }
     else{
+      let missingFields = []
+      if (!that.data.name) missingFields.push('商品名称')
+      if (!that.data.price) missingFields.push('价格')
+      if (that.data.productType === null) missingFields.push('商品类型')
+      
       wx.showToast({
-        title: '信息不完全',
+        title: `请填写：${missingFields.join('、')}`,
+        icon: 'none'
       })
     }
     
