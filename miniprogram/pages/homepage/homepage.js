@@ -10,7 +10,7 @@ Page({
     fruitInfo: [],
     typeCat: [
       { id: 0, name: "美味鲜果" },
-      { id: 1, name: "精品盒饭" },
+      { id: 1, name: "精品盒切" },
       { id: 2, name: "新鲜上架" },
       { id: 3, name: "店主推荐" },
     ],

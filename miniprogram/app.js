@@ -23,9 +23,9 @@ App({
       // 开发模式配置
       developmentMode: false,  // 开发阶段设为true，生产环境设为false
       // 微信支付配置（需要替换为真实配置）
-      appid: 'wx144a19ff0726d2a0',
-      mch_id: '1575701291',
-      apikey: '7868190b6e043039f0067c66f90a8498',
+      appid: 'wx7c3ad96751b729b4',
+      mch_id: '1730060902',
+      apikey: '406a85954e66abbfd44e9f69ee7ccd87',
       offLine:false,
       school_Arr: [
         "交大",
