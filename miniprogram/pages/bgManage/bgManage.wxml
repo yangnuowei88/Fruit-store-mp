@@ -2,19 +2,27 @@
 <view class='bluetooth-panel'>
   <view class='bluetooth-status-row'>
     <text class='status-text'>打印机状态：</text>
-    <text class='status-value {{connectedDevice ? "connected" : "disconnected"}}'>
-      {{connectedDevice ? connectedDevice.name || '已连接' : '未连接'}}
+    <text class='status-value {{(fruitPrinter.connectedDevice || boxlunchPrinter.connectedDevice) ? "connected" : "disconnected"}}'>
+      <block wx:if="{{fruitPrinter.connectedDevice}}">
+        🍎 {{fruitPrinter.connectedDevice.name || '水果打印机已连接'}}
+      </block>
+      <block wx:elif="{{boxlunchPrinter.connectedDevice}}">
+        🍱 {{boxlunchPrinter.connectedDevice.name || '盒饭打印机已连接'}}
+      </block>
+      <block wx:else>
+        未连接
+      </block>
     </text>
-    <button class='control-btn search-btn' bindtap='showPrinterTypeModal' disabled='{{isConnecting}}' wx:if='{{!connectedDevice}}'>
-      {{isConnecting ? '连接中...' : '搜索打印机'}}
+    <button class='control-btn search-btn' bindtap='showPrinterTypeModal' disabled='{{fruitPrinter.isConnecting || boxlunchPrinter.isConnecting}}' wx:if='{{!fruitPrinter.connectedDevice && !boxlunchPrinter.connectedDevice}}'>
+      {{(fruitPrinter.isConnecting || boxlunchPrinter.isConnecting) ? '连接中...' : '搜索打印机'}}
     </button>
-    <button class='control-btn disconnect-btn' bindtap='disconnectBluetooth' disabled='{{!connectedDevice}}' wx:if='{{connectedDevice}}'>
+    <button class='control-btn disconnect-btn' bindtap='disconnectCurrentPrinter' wx:if='{{fruitPrinter.connectedDevice || boxlunchPrinter.connectedDevice}}'>
       断开连接
     </button>
   </view>
   
-  <!-- 模拟打印机控制 -->
-  <view class='mock-printer-panel'>
+  <!-- 模拟打印机控制 - 已隐藏用于测试真实打印机 -->
+  <view class='mock-printer-panel' style='display: none;'>
     <view class='panel-divider'></view>
     <view class='mock-printer-title'>
       <text class='title-text'>🖨️ 模拟打印机</text>
@@ -50,6 +58,7 @@
   </view>
   <view class='debug-section'>
     <button class='debug-btn' bindtap='goToDebug'>📊 数据库调试</button>
+    <button class='debug-btn' bindtap='testSmartPrinting'>🧠 测试智能打印</button>
   </view>
   <view class='setting-description'>
     <text class='description-text'>• 自动发货：已支付订单将自动更新为发货状态</text>
@@ -59,27 +68,7 @@
 </view>
 
 <!-- 分类打印设置 -->
-<view class='category-print-panel'>
-  <view class='setting-item'>
-    <text class='setting-label'>分类打印：</text>
-    <switch class='setting-switch' checked='{{categoryPrintEnabled}}' bindchange='toggleCategoryPrint'></switch>
-    <text class='setting-status'>{{categoryPrintEnabled ? '已启用' : '已禁用'}}</text>
-  </view>
-  <view class='category-print-status' wx:if='{{categoryPrintEnabled}}'>
-    <view class='printer-status-item'>
-      <text class='printer-label'>🍎 水果打印机：</text>
-      <text class='printer-status {{fruitPrinter.connectedDevice ? "connected" : "disconnected"}}'>
-        {{fruitPrinter.connectedDevice ? fruitPrinter.connectedDevice.name : '未连接'}}
-      </text>
-    </view>
-    <view class='printer-status-item'>
-      <text class='printer-label'>🍱 盒饭打印机：</text>
-      <text class='printer-status {{boxlunchPrinter.connectedDevice ? "connected" : "disconnected"}}'>
-        {{boxlunchPrinter.connectedDevice ? boxlunchPrinter.connectedDevice.name : '未连接'}}
-      </text>
-    </view>
-  </view>
-</view>
+
 
 <!-- 打印机类型选择弹窗 -->
 <view class='modal-overlay' wx:if='{{showPrinterTypeModal}}' bindtap='closePrinterTypeModal'>

@@ -676,5 +676,16 @@ App({
       },
       fail: console.error
     })
+  },
+
+  // 带条件查询并排序的函数
+  getInfoWhereAndOrder: function (setName, ruleObj, ruleItem, orderFuc, callback) {
+    const db = wx.cloud.database()
+    db.collection(setName)
+      .where(ruleObj)
+      .orderBy(ruleItem, orderFuc)
+      .get()
+      .then(callback)
+      .catch(console.error)
   }
 })

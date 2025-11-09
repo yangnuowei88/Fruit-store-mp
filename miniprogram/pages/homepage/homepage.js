@@ -20,28 +20,28 @@ Page({
     offLine:null  //是否维护
   },
 
-  // 获取用户openid
-  getOpenid() {
-    let that = this;
-    wx.cloud.callFunction({
-      name: 'add',
-      complete: res => {
-        console.log('云函数获取到的openid: ', res.result.openId)
-        var openid = res.result.openId;
-        that.setData({
-          openid: openid
-        })
-      }
-    })
+  // 纯水果订单模拟
+  mockFruitOrder() {
+    this.createMockOrder('fruit');
   },
 
-  // 模拟下单功能
-  mockOrder() {
+  // 纯盒饭订单模拟
+  mockBoxlunchOrder() {
+    this.createMockOrder('boxlunch');
+  },
+
+  // 混合订单模拟
+  mockMixedOrder() {
+    this.createMockOrder('mixed');
+  },
+
+  // 通用的模拟订单创建函数
+  createMockOrder(orderType) {
     const that = this;
     
     // 显示加载提示
     wx.showLoading({
-      title: '正在生成模拟订单...',
+      title: `正在生成${orderType === 'fruit' ? '纯水果' : orderType === 'boxlunch' ? '纯盒饭' : '混合'}订单...`,
     });
 
     // 真实的商品数据池
@@ -55,6 +55,37 @@ Page({
       ['智利车厘子', 0.5, 89.00, '斤', 'https://img.alicdn.com/imgextra/i1/725677994/O1CN01cherry1Ks8XQZJ8Ks_!!725677994.jpg'],
       ['山东大樱桃', 1, 25.80, '斤', 'https://img.alicdn.com/imgextra/i2/725677994/O1CN01cherry2Ks8XQZJ8Ks_!!725677994.jpg']
     ];
+
+    // 真实的盒饭数据池
+    const realBoxlunches = [
+      ['红烧肉盒饭', 1, 15.80, '份', 'https://img.alicdn.com/imgextra/i1/725677994/O1CN01boxlunch1_!!725677994.jpg'],
+      ['宫保鸡丁盒饭', 1, 14.50, '份', 'https://img.alicdn.com/imgextra/i2/725677994/O1CN01chicken1_!!725677994.jpg'],
+      ['糖醋里脊盒饭', 1, 16.00, '份', 'https://img.alicdn.com/imgextra/i3/725677994/O1CN01pork1_!!725677994.jpg'],
+      ['麻婆豆腐盒饭', 1, 12.80, '份', 'https://img.alicdn.com/imgextra/i4/725677994/O1CN01tofu1_!!725677994.jpg'],
+      ['鱼香肉丝盒饭', 1, 15.20, '份', 'https://img.alicdn.com/imgextra/i5/725677994/O1CN01fish1_!!725677994.jpg']
+    ];
+
+    // 根据订单类型选择商品池
+    let availableProducts = [];
+    let orderTypeText = '';
+    
+    switch(orderType) {
+      case 'fruit':
+        availableProducts = realFruits.map(item => [...item, 0]); // 只有水果，类型=0
+        orderTypeText = '纯水果订单';
+        break;
+      case 'boxlunch':
+        availableProducts = realBoxlunches.map(item => [...item, 1]); // 只有盒饭，类型=1
+        orderTypeText = '纯盒饭订单';
+        break;
+      case 'mixed':
+        availableProducts = [
+          ...realFruits.map(item => [...item, 0]), // 水果类型=0
+          ...realBoxlunches.map(item => [...item, 1]) // 盒饭类型=1
+        ];
+        orderTypeText = '混合订单';
+        break;
+    }
 
     // 真实的用户信息池
     const realUsers = [
@@ -91,30 +122,37 @@ Page({
     const randomAddress = realAddresses[Math.floor(Math.random() * realAddresses.length)];
     const randomMessage = realMessages[Math.floor(Math.random() * realMessages.length)];
 
-    // 随机选择2-4种商品
+    // 根据订单类型选择商品数量
+    let productCount;
+    if (orderType === 'mixed') {
+      productCount = Math.floor(Math.random() * 3) + 3; // 混合订单3-5种商品
+    } else {
+      productCount = Math.floor(Math.random() * 3) + 2; // 纯类型订单2-4种商品
+    }
+    
     const selectedFruits = [];
-    const fruitCount = Math.floor(Math.random() * 3) + 2; // 2-4种商品
     const usedIndices = new Set();
     
     let totalAmount = 0;
-    for (let i = 0; i < fruitCount; i++) {
+    for (let i = 0; i < productCount; i++) {
       let randomIndex;
       do {
-        randomIndex = Math.floor(Math.random() * realFruits.length);
+        randomIndex = Math.floor(Math.random() * availableProducts.length);
       } while (usedIndices.has(randomIndex));
       
       usedIndices.add(randomIndex);
-      const fruit = realFruits[randomIndex];
-      const [name, quantity, price, unit, imgUrl] = fruit;
+      const product = availableProducts[randomIndex];
       
-      // 随机调整数量，使订单更真实
-      const adjustedQuantity = Math.round((Math.random() * 2 + 0.5) * quantity * 10) / 10; // 0.5-2.5倍的随机数量
+      // 随机调整数量（在原基础上±50%）
+      const baseQuantity = product[1];
+      const adjustedQuantity = Math.max(0.5, baseQuantity * (0.5 + Math.random()));
+      const roundedQuantity = Math.round(adjustedQuantity * 10) / 10; // 保留一位小数
       
-      selectedFruits.push([name, adjustedQuantity, price]);
-      totalAmount += adjustedQuantity * price;
+      selectedFruits.push([product[0], roundedQuantity, product[2], product[5]]); // [名称, 数量, 价格, 类型]
+      totalAmount += roundedQuantity * product[2];
     }
 
-    // 生成真实的订单号（格式：FS + 年月日 + 时分秒 + 3位随机数）
+    // 生成订单号
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -123,129 +161,38 @@ Page({
     const minute = String(now.getMinutes()).padStart(2, '0');
     const second = String(now.getSeconds()).padStart(2, '0');
     const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
-    const orderNumber = `FS${year}${month}${day}${hour}${minute}${second}${random}`;
+    const orderNumber = `${year}${month}${day}${hour}${minute}${second}${random}`;
 
-    // 随机生成不同的订单场景
-    const scenarios = [
-      // 场景1：正常订单（80%概率）
-      {
-        weight: 80,
-        config: {
-          paySuccess: true,
-          sending: false,
-          finished: false,
-          printed: false,
-          scenario: '正常待发货订单'
-        }
-      },
-      // 场景2：大额订单（10%概率）
-      {
-        weight: 10,
-        config: {
-          paySuccess: true,
-          sending: false,
-          finished: false,
-          printed: false,
-          scenario: '大额订单',
-          multiplier: 2.5 // 金额倍数
-        }
-      },
-      // 场景3：紧急订单（5%概率）
-      {
-        weight: 5,
-        config: {
-          paySuccess: true,
-          sending: false,
-          finished: false,
-          printed: false,
-          scenario: '紧急订单',
-          message: '紧急订单！请优先配送，谢谢！'
-        }
-      },
-      // 场景4：VIP客户订单（3%概率）
-      {
-        weight: 3,
-        config: {
-          paySuccess: true,
-          sending: false,
-          finished: false,
-          printed: false,
-          scenario: 'VIP客户订单',
-          name: 'VIP-' + randomUser.name,
-          message: 'VIP客户，请确保水果新鲜度'
-        }
-      },
-      // 场景5：团购订单（2%概率）
-      {
-        weight: 2,
-        config: {
-          paySuccess: true,
-          sending: false,
-          finished: false,
-          printed: false,
-          scenario: '团购订单',
-          multiplier: 3.0,
-          message: '团购订单，请按时配送到指定地点'
-        }
-      }
-    ];
-
-    // 根据权重随机选择场景
-    const totalWeight = scenarios.reduce((sum, s) => sum + s.weight, 0);
-    let randomWeight = Math.random() * totalWeight;
-    let selectedScenario = scenarios[0]; // 默认场景
-
-    for (const scenario of scenarios) {
-      randomWeight -= scenario.weight;
-      if (randomWeight <= 0) {
-        selectedScenario = scenario;
-        break;
-      }
-    }
-
-    // 应用场景配置
-    const scenarioConfig = selectedScenario.config;
-    if (scenarioConfig.multiplier) {
-      totalAmount *= scenarioConfig.multiplier;
-      // 调整商品数量以匹配金额
-      selectedFruits.forEach(fruit => {
-        fruit[1] = Math.round(fruit[1] * scenarioConfig.multiplier * 10) / 10;
-      });
-    }
-
-    // 生成模拟订单数据
+    // 构建订单数据
     const mockOrderData = {
-      name: scenarioConfig.name || randomUser.name,
+      name: randomUser.name,
       phone: randomUser.phone,
       schoolName: randomAddress.schoolName,
       addressItem: randomAddress.addressItem,
       detail: randomAddress.detail,
-      message: scenarioConfig.message || randomMessage,
-      orderTime: app.CurrentTime_show(),
-      orderSuccess: true,
-      payTime: app.CurrentTime_show(),
-      paySuccess: scenarioConfig.paySuccess,
-      sending: scenarioConfig.sending,
-      finished: scenarioConfig.finished,
-      printed: scenarioConfig.printed,
+      message: randomMessage,
       fruitList: selectedFruits,
       total: Math.round(totalAmount * 100) / 100, // 保留两位小数
-      openid: that.data.openid || 'mock_openid_' + Date.now(),
+      paySuccess: true,
+      sending: false,
+      finished: false,
+      printed: false,
+      time: new Date(),
       out_trade_no: 'MOCK_' + Date.now(),
       orderNumber: orderNumber,
-      scenario: scenarioConfig.scenario // 添加场景标识
+      scenario: orderTypeText
     };
 
-    console.log('生成的模拟订单数据:', mockOrderData);
+    console.log(`生成的${orderTypeText}数据:`, mockOrderData);
 
     // 将订单数据插入数据库
     app.addRowToSet('order_master', mockOrderData, (res) => {
       wx.hideLoading();
-      console.log('模拟订单插入结果:', res);
+      console.log(`${orderTypeText}插入结果:`, res);
       
       if (res) {
         wx.showModal({
-          title: '模拟下单成功！',
+          title: `${orderTypeText}生成成功！`,
           content: `订单类型：${mockOrderData.scenario}\n订单号：${mockOrderData.orderNumber}\n客户姓名：${mockOrderData.name}\n总金额：￥${mockOrderData.total}\n支付状态：已完成\n\n订单已生成并完成支付，可在订单管理页面进行后续操作`,
           showCancel: false,
           confirmText: '确定',
@@ -262,6 +209,23 @@ Page({
       }
     });
   },
+
+  // 获取用户openid
+  getOpenid() {
+    let that = this;
+    wx.cloud.callFunction({
+      name: 'add',
+      complete: res => {
+        console.log('云函数获取到的openid: ', res.result.openId)
+        var openid = res.result.openId;
+        that.setData({
+          openid: openid
+        })
+      }
+    })
+  },
+
+
 
   // ------------加入购物车------------
   addCartByHome: function(e) {
@@ -288,10 +252,15 @@ Page({
     getCurrentPages()["0"].setData({
       activeTypeId: parseInt(e.currentTarget.id)
     })
+    const db = wx.cloud.database()
+    const _ = db.command
+    
     switch (e.currentTarget.id) {
-      // 全部展示
+      // 美味鲜果（排除盒饭）
       case '0':
-        app.getInfoByOrder('fruit-board', 'time', 'desc',
+        app.getInfoWhereAndOrder('fruit-board', {
+          myClass: _.or(_.neq(1), _.exists(false))
+        }, 'time', 'desc',
           e => {
             getCurrentPages()["0"].setData({
               fruitInfo: e.data
@@ -309,9 +278,9 @@ Page({
           }
         )
         break;
-      // 销量排行
+      // 新鲜上架（显示所有商品）
       case '2':
-        app.getInfoByOrder('fruit-board','time','desc',
+        app.getInfoByOrder('fruit-board', 'time', 'desc',
           e => {
             getCurrentPages()["0"].setData({
               fruitInfo: e.data
@@ -360,7 +329,10 @@ Page({
 
   onShow: function () {
     var that = this
-    // 水果信息
+    const db = wx.cloud.database()
+    const _ = db.command
+    
+    // 水果信息（排除盒饭）
     // app.getInfoFromSet('fruit-board', {},
     //   e => {
     //     // console.log(e.data)
@@ -371,7 +343,9 @@ Page({
     //     wx.hideLoading()
     //   }
     // )
-    app.getInfoByOrder('fruit-board', 'time', 'desc',
+    app.getInfoWhereAndOrder('fruit-board', {
+      myClass: _.or(_.neq(1), _.exists(false))
+    }, 'time', 'desc',
       e => {
         getCurrentPages()["0"].setData({
           fruitInfo: e.data,

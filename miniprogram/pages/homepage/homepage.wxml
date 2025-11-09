@@ -5,13 +5,7 @@
 <!--搜索框-->
 <mySearch></mySearch>
 
-<!-- 模拟下单按钮 -->
-<view class='mock-order-container'>
-  <button class='mock-order-btn' bindtap='mockOrder'>
-    <image class='mock-order-icon' src='../../images/icon/cart4.png' mode='aspectFit'></image>
-    <text class='mock-order-text'>模拟下单</text>
-  </button>
-</view>
+
 
 <!-- 轮播图 -->
 <view style='height:500rpx;width:100%'> 

@@ -1,25 +1,38 @@
 page {background-color: rgb(245, 249, 253)}
 
-/* 模拟下单按钮样式 */
+/* 模拟下单按钮组样式 */
 .mock-order-container {
-  display: flex;
-  justify-content: center;
   padding: 20rpx;
   margin: 10rpx 20rpx;
+  background: white;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.mock-order-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.mock-order-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15rpx;
 }
 
 .mock-order-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
   color: white;
   border: none;
   border-radius: 50rpx;
   padding: 15rpx 40rpx;
   font-size: 28rpx;
   font-weight: bold;
-  box-shadow: 0 8rpx 20rpx rgba(255, 107, 107, 0.3);
   transition: all 0.3s ease;
 }
 
@@ -29,7 +42,34 @@ page {background-color: rgb(245, 249, 253)}
 
 .mock-order-btn:active {
   transform: translateY(2rpx);
-  box-shadow: 0 4rpx 10rpx rgba(255, 107, 107, 0.4);
+}
+
+/* 不同类型按钮的颜色 */
+.fruit-btn {
+  background: linear-gradient(135deg, #4CAF50, #66BB6A);
+  box-shadow: 0 8rpx 20rpx rgba(76, 175, 80, 0.3);
+}
+
+.fruit-btn:active {
+  box-shadow: 0 4rpx 10rpx rgba(76, 175, 80, 0.4);
+}
+
+.boxlunch-btn {
+  background: linear-gradient(135deg, #FF9800, #FFB74D);
+  box-shadow: 0 8rpx 20rpx rgba(255, 152, 0, 0.3);
+}
+
+.boxlunch-btn:active {
+  box-shadow: 0 4rpx 10rpx rgba(255, 152, 0, 0.4);
+}
+
+.mixed-btn {
+  background: linear-gradient(135deg, #9C27B0, #BA68C8);
+  box-shadow: 0 8rpx 20rpx rgba(156, 39, 176, 0.3);
+}
+
+.mixed-btn:active {
+  box-shadow: 0 4rpx 10rpx rgba(156, 39, 176, 0.4);
 }
 
 .mock-order-icon {

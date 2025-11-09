@@ -35,7 +35,7 @@
             <view class="btn-icon">🚚</view>
             <view class="btn-content">
                 <view class="btn-text">骑手配送</view>
-                <view class="btn-desc">配送任务管理、路线规划</view>
+                <view class="btn-desc">配送任务管理</view>
             </view>
         </view>
     </view>

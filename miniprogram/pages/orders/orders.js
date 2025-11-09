@@ -9,7 +9,8 @@ Page({
     orders: [],
     myList: [],
     openid: '',
-    nonce_str: ''
+    nonce_str: '',
+    spbill_create_ip: '127.0.0.1'  // 默认IP地址，防止undefined
   },
 
   onReady() {
@@ -131,6 +132,14 @@ Page({
         return
       }
 
+      // 确保spbill_create_ip有值，如果为undefined则使用默认值
+      if (!that.data.spbill_create_ip) {
+        that.setData({
+          spbill_create_ip: '127.0.0.1'
+        })
+        console.warn('spbill_create_ip未设置，使用默认IP: 127.0.0.1')
+      }
+
       // ------获取prepay_id，所需的签名字符串------
       var p = new Promise((resolve,reject)=>{
       // 生成支付订单号
@@ -138,6 +147,9 @@ Page({
       
       // 生成业务订单号（包含日期时间）
       var orderNumber = that.generateOrderNumber()
+
+      // 获取IP地址，确保有值
+      var spbill_create_ip = that.data.spbill_create_ip || '127.0.0.1'
 
       // -----生成字符串------
       var stringA = 
@@ -150,7 +162,7 @@ Page({
       + "&notify_url=http://www.weixin.qq.com/wxpay/pay.php"
       + "&openid="+that.data.openid
       + "&out_trade_no="+out_trade_no
-      + "&spbill_create_ip="+that.data.spbill_create_ip
+      + "&spbill_create_ip="+spbill_create_ip
       + "&time_expire="+app.beforeNowtimeByMin(-15)
       + "&time_start="+app.CurrentTime()
       + "&total_fee="+Math.max(1, parseInt(that.data.total*100))
@@ -205,6 +217,9 @@ Page({
 
       })
       p.then(e => {
+        // 确保IP地址有值
+        var spbill_create_ip = that.data.spbill_create_ip || '127.0.0.1'
+        
         // 生成获取prepay_id请求的xml参数
         var xmlData = '<xml>'+
           '<appid>'+app.globalData.appid+'</appid>'+
@@ -216,7 +231,7 @@ Page({
           '<notify_url>http://www.weixin.qq.com/wxpay/pay.php</notify_url>' +
           '<openid>'+that.data.openid+'</openid>'+
           '<out_trade_no>'+e[2]+'</out_trade_no>'+
-          '<spbill_create_ip>'+that.data.spbill_create_ip+'</spbill_create_ip>'+
+          '<spbill_create_ip>'+spbill_create_ip+'</spbill_create_ip>'+
           '<time_expire>'+app.beforeNowtimeByMin(-15)+'</time_expire>'+
           '<time_start>'+app.CurrentTime()+'</time_start>'+
           '<total_fee>'+Math.max(1, parseInt(that.data.total * 100))+'</total_fee>'+
