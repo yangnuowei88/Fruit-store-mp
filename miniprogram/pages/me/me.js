@@ -365,10 +365,23 @@ Page({
         icon: 'none'
       });
       return;
+    } else {
+      // 如果不是骑手也不是管理员，显示openid
+      const openid = that.data.openid || '未获取到openid';
+      wx.showModal({
+        title: '用户信息',
+        content: 'OpenID: ' + openid,
+        showCancel: false,
+        confirmText: '确定',
+        success: function(res) {
+          if (res.confirm) {
+            // 显示openid后，继续显示邀请码输入对话框
+            that.showInviteCodeInput();
+          }
+        }
+      });
+      return;
     }
-
-    // 显示邀请码输入对话框
-    that.showInviteCodeInput();
   },
 
   // 显示邀请码输入对话框
