@@ -383,7 +383,7 @@ Page({
 
   onShareAppMessage: function () {
     return {
-      title: '水果园byVoyz',
+      title: '校园自有平台-物美价廉',
       imageUrl: '../../images/icon/fruit.jpg',
       path: '/pages/homepage/homepage'
     }

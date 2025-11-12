@@ -25,7 +25,7 @@ App({
       // 微信支付配置（需要替换为真实配置）
       appid: 'wx7c3ad96751b729b4',
       mch_id: '1730060902',
-      apikey: '406a85954e66abbfd44e9f69ee7ccd87',
+      apikey: 'e50c2e0abfa604634745f99c71406965',
       offLine:false,
       school_Arr: [
         "交大",
