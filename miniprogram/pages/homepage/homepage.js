@@ -262,9 +262,25 @@ Page({
           myClass: _.or(_.neq(1), _.exists(false))
         }, 'time', 'desc',
           e => {
-            getCurrentPages()["0"].setData({
-              fruitInfo: e.data
-            })
+            const list = Array.isArray(e.data) ? e.data : [];
+            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
+            if (ids.length) {
+              wx.cloud.getTempFileURL({
+                fileList: ids,
+                success: res => {
+                  const map = {};
+                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
+                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                },
+                fail: err => {
+                  console.error('分类0图片URL转换失败:', err);
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                }
+              });
+            } else {
+              getCurrentPages()["0"].setData({ fruitInfo: list });
+            }
           }
         )
         break;
@@ -272,9 +288,25 @@ Page({
       case '1':
         app.getInfoWhere('fruit-board', {myClass:1},
           e => {
-            getCurrentPages()["0"].setData({
-              fruitInfo: e.data
-            })
+            const list = Array.isArray(e.data) ? e.data : [];
+            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
+            if (ids.length) {
+              wx.cloud.getTempFileURL({
+                fileList: ids,
+                success: res => {
+                  const map = {};
+                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
+                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                },
+                fail: err => {
+                  console.error('分类1图片URL转换失败:', err);
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                }
+              });
+            } else {
+              getCurrentPages()["0"].setData({ fruitInfo: list });
+            }
           }
         )
         break;
@@ -282,9 +314,25 @@ Page({
       case '2':
         app.getInfoByOrder('fruit-board', 'time', 'desc',
           e => {
-            getCurrentPages()["0"].setData({
-              fruitInfo: e.data
-            })
+            const list = Array.isArray(e.data) ? e.data : [];
+            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
+            if (ids.length) {
+              wx.cloud.getTempFileURL({
+                fileList: ids,
+                success: res => {
+                  const map = {};
+                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
+                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                },
+                fail: err => {
+                  console.error('分类2图片URL转换失败:', err);
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                }
+              });
+            } else {
+              getCurrentPages()["0"].setData({ fruitInfo: list });
+            }
           }
         )
         break;
@@ -292,9 +340,25 @@ Page({
       case '3':
         app.getInfoWhere('fruit-board', { recommend: '1' },
           e => {
-            getCurrentPages()["0"].setData({
-              fruitInfo: e.data
-            })
+            const list = Array.isArray(e.data) ? e.data : [];
+            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
+            if (ids.length) {
+              wx.cloud.getTempFileURL({
+                fileList: ids,
+                success: res => {
+                  const map = {};
+                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
+                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                },
+                fail: err => {
+                  console.error('分类3图片URL转换失败:', err);
+                  getCurrentPages()["0"].setData({ fruitInfo: list });
+                }
+              });
+            } else {
+              getCurrentPages()["0"].setData({ fruitInfo: list });
+            }
           }
         )
         break;
@@ -347,11 +411,32 @@ Page({
       myClass: _.or(_.neq(1), _.exists(false))
     }, 'time', 'desc',
       e => {
-        getCurrentPages()["0"].setData({
-          fruitInfo: e.data,
-          isShow: true
-        })
-        wx.hideLoading()
+        const list = Array.isArray(e.data) ? e.data : [];
+        const fileIds = [];
+        list.forEach(it => {
+          const url = it.imgUrl;
+          if (typeof url === 'string' && url.startsWith('cloud://')) fileIds.push(url);
+        });
+        if (fileIds.length) {
+          wx.cloud.getTempFileURL({
+            fileList: fileIds,
+            success: res => {
+              const map = {};
+              (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
+              list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
+              getCurrentPages()["0"].setData({ fruitInfo: list, isShow: true });
+              wx.hideLoading();
+            },
+            fail: err => {
+              console.error('首页图片临时URL获取失败:', err);
+              getCurrentPages()["0"].setData({ fruitInfo: list, isShow: true });
+              wx.hideLoading();
+            }
+          });
+        } else {
+          getCurrentPages()["0"].setData({ fruitInfo: list, isShow: true });
+          wx.hideLoading();
+        }
       }
     )
     // console.log(app.globalData.offLine)

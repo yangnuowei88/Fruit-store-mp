@@ -14,7 +14,7 @@ App({
     }
 
     this.globalData = {
-      cloudRoot : "cloud://cloud1-0g8wog310bb3f1a1/",
+      cloudRoot : "cloud://cloud1-2gmg1o6h43977608.636c-cloud1-2gmg1o6h43977608-1257847359/",
       carts:[],  //购物车
       tmpNum: 0,
       tempFilePaths: "",
