@@ -417,14 +417,29 @@ Page({
   sendingFruit: function(e) {
     var that = this
     console.log(e.currentTarget.id)
-    app.updateInfo('order_master', e.currentTarget.id, {
-      sending: true,      // 确保配送状态为true
-      sendingTime: app.CurrentTime_show()
-    }, e => {
-      that.refreshCurrentTab()
-      wx.showToast({
-        title: '【已发货】',
-      })
+    wx.showLoading({ title: '发货中...' })
+    wx.cloud.callFunction({
+      name: 'updateOrderStatus',
+      data: {
+        orderId: e.currentTarget.id,
+        updates: {
+          sending: true,
+          sendingTime: app.CurrentTime_show()
+        }
+      }
+    }).then(res => {
+      wx.hideLoading()
+      if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+        that.refreshCurrentTab()
+        wx.showToast({ title: '【已发货】' })
+      } else {
+        wx.showToast({ title: '云函数更新失败或无变化', icon: 'none' })
+        console.warn('发货状态更新失败或无变化:', res)
+      }
+    }).catch(err => {
+      wx.hideLoading()
+      wx.showToast({ title: '发货失败', icon: 'none' })
+      console.error('云函数更新发货状态异常:', err)
     })
   },
 
@@ -432,14 +447,29 @@ Page({
   confirmDelivery: function(e) {
     var that = this
     console.log('确认送达订单ID:', e.currentTarget.id)
-    app.updateInfo('order_master', e.currentTarget.id, {
-      finished: true,     // 设置完成状态为true
-      finishedTime: app.CurrentTime_show()
-    }, e => {
-      that.refreshCurrentTab()
-      wx.showToast({
-        title: '【已送达】',
-      })
+    wx.showLoading({ title: '提交中...' })
+    wx.cloud.callFunction({
+      name: 'updateOrderStatus',
+      data: {
+        orderId: e.currentTarget.id,
+        updates: {
+          finished: true,
+          finishedTime: app.CurrentTime_show()
+        }
+      }
+    }).then(res => {
+      wx.hideLoading()
+      if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+        that.refreshCurrentTab()
+        wx.showToast({ title: '【已送达】' })
+      } else {
+        wx.showToast({ title: '云函数更新失败或无变化', icon: 'none' })
+        console.warn('送达状态更新失败或无变化:', res)
+      }
+    }).catch(err => {
+      wx.hideLoading()
+      wx.showToast({ title: '送达更新失败', icon: 'none' })
+      console.error('云函数更新送达状态异常:', err)
     })
   },
 
@@ -1500,12 +1530,24 @@ Page({
           icon: 'success'
         });
         
-        // 更新订单打印状态到数据库
-        app.updateInfo('order_master', orderData._id, {
-          printed: true,
-          printTime: app.CurrentTime_show()
-        }, () => {
-          console.log(`📝 订单 ${orderData._id} 打印状态已更新到数据库`);
+        // 更新订单打印状态到数据库（云函数）
+        wx.cloud.callFunction({
+          name: 'updateOrderStatus',
+          data: {
+            orderId: orderData._id,
+            updates: {
+              printed: true,
+              printTime: app.CurrentTime_show()
+            }
+          }
+        }).then(res => {
+          if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+            console.log(`📝 订单 ${orderData._id} 打印状态已更新到数据库`);
+          } else {
+            console.warn('打印状态更新失败或无变化:', res);
+          }
+        }).catch(err => {
+          console.error('云函数更新打印状态异常:', err);
         });
       }, (error) => {
         console.error(`❌ 订单 ${orderData._id} 打印失败:`, error);
@@ -1710,12 +1752,26 @@ Page({
       });
       
       // 更新订单打印状态
-      app.updateInfo('order_master', orderData._id, {
-        printed: true,
-        printTime: app.CurrentTime_show()
-      }, () => {
-        console.log(`📝 订单 ${orderData._id} 打印状态已更新`);
+      wx.cloud.callFunction({
+        name: 'updateOrderStatus',
+        data: {
+          orderId: orderData._id,
+          updates: {
+            printed: true,
+            printTime: app.CurrentTime_show()
+          }
+        }
+      }).then(res => {
+        if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+          console.log(`📝 订单 ${orderData._id} 打印状态已更新`);
+        } else {
+          console.warn('打印状态更新失败或无变化:', res);
+        }
         // 打印成功后自动发货
+        this.updateOrderToShipping(orderData._id);
+      }).catch(err => {
+        console.error('云函数更新打印状态异常:', err);
+        // 即使更新打印状态失败，也尝试发货
         this.updateOrderToShipping(orderData._id);
       });
     }, (err) => {
@@ -2308,26 +2364,40 @@ Page({
         console.log(`💰 订单总计: ¥${order.total}`);
         console.log(`🎭 ===== 模拟打印完成 =====`);
         
-        // 模拟打印过程（1秒延迟）
-        setTimeout(() => {
-          console.log(`✅ 订单 ${order._id} 模拟打印成功`)
-          console.log(`🎉 ===== 自动打印（模拟）成功完成 =====`);
+      // 模拟打印过程（1秒延迟）
+      setTimeout(() => {
+        console.log(`✅ 订单 ${order._id} 模拟打印成功`)
+        console.log(`🎉 ===== 自动打印（模拟）成功完成 =====`);
           
           // 从打印锁定集合中移除（本地和全局）
           this.printingOrders.delete(order._id);
           app.globalData.printingOrders.delete(order._id);
           console.log(`🔓 订单 ${order._id} 已从模拟打印锁定中移除`);
           
-          // 更新订单打印状态
-          app.updateInfo('order_master', order._id, {
-            printed: true,
-            printTime: app.CurrentTime_show()
-          }, () => {
+        // 更新订单打印状态（云函数）
+        wx.cloud.callFunction({
+          name: 'updateOrderStatus',
+          data: {
+            orderId: order._id,
+            updates: {
+              printed: true,
+              printTime: app.CurrentTime_show()
+            }
+          }
+        }).then(res => {
+          if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
             console.log(`📝 订单 ${order._id} 模拟打印状态已更新`)
-            // 打印成功后自动发货
-            this.updateOrderToShipping(order._id)
-          })
-        }, 1000);
+          } else {
+            console.warn('模拟打印状态更新失败或无变化:', res)
+          }
+          // 打印成功后自动发货
+          this.updateOrderToShipping(order._id)
+        }).catch(err => {
+          console.error('云函数更新模拟打印状态异常:', err)
+          // 即使更新失败也尝试发货
+          this.updateOrderToShipping(order._id)
+        })
+      }, 1000);
         
         return;
       }
@@ -2352,13 +2422,27 @@ Page({
         app.globalData.printingOrders.delete(order._id);
         console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除`);
         
-        // 更新订单打印状态
-        app.updateInfo('order_master', order._id, {
-          printed: true,
-          printTime: app.CurrentTime_show()
-        }, () => {
-          console.log(`📝 订单 ${order._id} 打印状态已更新`)
+        // 更新订单打印状态（云函数）
+        wx.cloud.callFunction({
+          name: 'updateOrderStatus',
+          data: {
+            orderId: order._id,
+            updates: {
+              printed: true,
+              printTime: app.CurrentTime_show()
+            }
+          }
+        }).then(res => {
+          if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+            console.log(`📝 订单 ${order._id} 打印状态已更新`)
+          } else {
+            console.warn('自动打印状态更新失败或无变化:', res)
+          }
           // 打印成功后自动发货
+          this.updateOrderToShipping(order._id)
+        }).catch(err => {
+          console.error('云函数更新自动打印状态异常:', err)
+          // 即使更新失败也尝试发货
           this.updateOrderToShipping(order._id)
         })
       }, (err) => {
@@ -2455,22 +2539,27 @@ Page({
   // 更新订单为发货状态
   updateOrderToShipping(orderId) {
     console.log(`🚚 更新订单 ${orderId} 为发货状态`)
-    
-    app.updateInfo('order_master', orderId, {
-      sending: true,
-      sendingTime: app.CurrentTime_show()
-    }, () => {
-      console.log(`✅ 订单 ${orderId} 已自动发货`)
-      
+    wx.cloud.callFunction({
+      name: 'updateOrderStatus',
+      data: {
+        orderId,
+        updates: {
+          sending: true,
+          sendingTime: app.CurrentTime_show()
+        }
+      }
+    }).then(res => {
+      if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+        console.log(`✅ 订单 ${orderId} 已自动发货`)
+      } else {
+        console.warn('自动发货更新失败或无变化:', res)
+      }
       // 刷新当前标签页
       this.refreshCurrentTab()
-      
-      // 显示提示（可选，避免过于频繁的提示）
-      // wx.showToast({
-      //   title: '订单已自动发货',
-      //   icon: 'success',
-      //   duration: 1000
-      // })
+    }).catch(err => {
+      console.error('云函数更新发货状态异常:', err)
+      // 仍然尝试刷新以反映任何可能的状态变化
+      this.refreshCurrentTab()
     })
   },
 
