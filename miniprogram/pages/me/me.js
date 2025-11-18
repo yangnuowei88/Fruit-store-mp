@@ -18,7 +18,12 @@ Page({
       canViewRiderManage: false   // 骑手配送
     },
     // 加载状态
-    roleLoading: true
+    roleLoading: true,
+    // 分页状态
+    page: 0,
+    pageSize: 20,
+    hasMore: true,
+    loadingMore: false
   },
   onLoad() {
     var that = this;
@@ -43,7 +48,25 @@ Page({
   },
   onPullDownRefresh: function () {
     var that = this
-    that.getUserRoleAndOrders()
+    that.resetOrdersPagination()
+    if (that.data.openid) {
+      that.getOrdersByOpenid(that.data.openid)
+    } else {
+      that.getUserRoleAndOrders()
+    }
+    var timer
+
+    (timer = setTimeout(function () {
+      wx.stopPullDownRefresh()
+    }, 500));
+
+  },
+
+  onReachBottom: function () {
+    var that = this
+    if (that.data.openid) {
+      that.getOrdersByOpenid(that.data.openid)
+    }
     var timer
 
     (timer = setTimeout(function () {
@@ -82,7 +105,8 @@ Page({
 
           console.log('用户权限配置:', userData.permissions);
           
-          // 获取订单信息
+          // 重置并分页获取订单信息
+          that.resetOrdersPagination();
           that.getOrdersByOpenid(userData.openid);
           
         } else {
@@ -120,7 +144,8 @@ Page({
               roleLoading: false
             });
             
-            // 获取订单信息
+            // 重置并分页获取订单信息
+            that.resetOrdersPagination();
             that.getOrdersByOpenid(openid);
           },
           fail: addErr => {
@@ -134,86 +159,38 @@ Page({
     });
   },
 
-  // 根据openid获取订单信息
+  // 根据openid分页获取订单信息（按时间倒序）
   getOrdersByOpenid(openid) {
     var that = this;
-    
-    console.log('🔍 开始查询订单，openid:', openid);
-    
-    // 使用getInfoByOrder按时间倒序查询所有订单，然后过滤当前用户的订单
-    app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
-      console.log('📋 ===== 数据库查询结果详情 =====');
-      console.log('查询方法: getInfoByOrder (按orderTime倒序)');
-      console.log('查询结果状态:', e);
-      console.log('查询到的总订单数量:', e.data ? e.data.length : 0);
-      
-      if (e.data && e.data.length > 0) {
-        // 过滤出当前用户的订单
-        const userOrders = e.data.filter(order => order.openid === openid);
-        console.log('当前用户的订单数量:', userOrders.length);
-        
-        if (userOrders.length > 0) {
-          console.log('📊 当前用户的原始订单数据:');
-          userOrders.forEach((order, index) => {
-            console.log(`订单 ${index + 1}:`, {
-              _id: order._id,
-              orderNumber: order.orderNumber,
-              out_trade_no: order.out_trade_no,
-              orderTime: order.orderTime,
-              payTime: order.payTime,
-              sendingTime: order.sendingTime,
-              finishedTime: order.finishedTime,
-              total: order.total,
-              paySuccess: order.paySuccess,
-              sending: order.sending,
-              finished: order.finished,
-              name: order.name,
-              phone: order.phone,
-              schoolName: order.schoolName,
-              addressItem: order.addressItem,
-              detail: order.detail,
-              message: order.message,
-              fruitList: order.fruitList
-            });
-          });
-          
-          // 格式化订单数据（已经按时间倒序排列，无需再次排序）
-          const formattedOrders = userOrders.map(order => that.formatOrderData(order));
-          
-          console.log('✨ 格式化后的订单数据:');
-          formattedOrders.forEach((order, index) => {
-            console.log(`格式化订单 ${index + 1}:`, {
-              _id: order._id,
-              orderNumber: order.orderNumber,
-              orderTime: order.orderTime,
-              payTime: order.payTime,
-              sendingTime: order.sendingTime,
-              finishedTime: order.finishedTime,
-              total: order.total,
-              paySuccess: order.paySuccess,
-              sending: order.sending,
-              finished: order.finished,
-              fruitList: order.fruitList
-            });
-          });
-          
-          that.setData({
-            orders: formattedOrders
-          });
-          
-          console.log('📱 页面数据已更新，当前显示订单数量:', formattedOrders.length);
-        } else {
-          console.log('⚠️ 当前用户没有订单数据');
-          that.setData({
-            orders: []
-          });
-        }
-      } else {
-        console.log('⚠️ 数据库中没有任何订单数据');
-        that.setData({
-          orders: []
-        });
-      }
+    if (that.data.loadingMore || !that.data.hasMore) return;
+    that.setData({ loadingMore: true });
+
+    const page = that.data.page;
+    const pageSize = that.data.pageSize;
+
+    app.getInfoWhereAndOrderPaged('order_master', { openid: openid }, 'orderTime', 'desc', page, pageSize, e => {
+      const rows = e && e.data ? e.data : [];
+      const formatted = rows.map(order => that.formatOrderData(order));
+      const newList = (that.data.orders || []).concat(formatted);
+      const hasMore = rows.length >= pageSize;
+      const nextPage = hasMore ? page + 1 : page;
+
+      that.setData({
+        orders: newList,
+        page: nextPage,
+        hasMore: hasMore,
+        loadingMore: false
+      });
+    });
+  },
+
+  // 重置订单分页
+  resetOrdersPagination() {
+    this.setData({
+      page: 0,
+      hasMore: true,
+      loadingMore: false,
+      orders: []
     });
   },
 

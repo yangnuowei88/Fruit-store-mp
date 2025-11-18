@@ -11,6 +11,11 @@ Page({
     allOrderList: [], // 存储所有订单的完整列表
     displayOrderList: [], // 用于显示的订单列表（原始数据或搜索结果）
     cardNum: 1,
+    // 分页状态
+    page: 0,
+    pageSize: 20,
+    hasMore: true,
+    loadingMore: false,
     // 搜索相关
     searchPhone: '',
     searchResult: [],
@@ -60,8 +65,9 @@ Page({
   onLoad: function (options) {
     // 初始化正在打印的订单ID集合
     this.printingOrders = new Set()
-    
-    this.getAllList()
+    // 默认加载当前标签页的第一页数据（替代原有一次性全量查询）
+    this.resetOrderPagination()
+    this.loadOrderPage()
     this.initBluetooth()
     this.checkMockPrinterStatus()
     // 检查真实打印机连接状态
@@ -78,7 +84,8 @@ Page({
     // 切换到其他标签页时清空搜索状态
     this.clearSearchState()
     // 更新显示列表
-    this.updateDisplayList()
+    this.resetOrderPagination()
+    this.loadOrderPage()
   },
   tapTo2: function () { //修改和删除
     var that = this
@@ -88,7 +95,8 @@ Page({
     // 切换到其他标签页时清空搜索状态
     this.clearSearchState()
     // 更新显示列表
-    this.updateDisplayList()
+    this.resetOrderPagination()
+    this.loadOrderPage()
     // console.log(getCurrentPages())
   },
   tapTo3: function () {
@@ -99,16 +107,18 @@ Page({
     // 切换到其他标签页时清空搜索状态
     this.clearSearchState()
     // 更新显示列表
-    this.updateDisplayList()
+    this.resetOrderPagination()
+    this.loadOrderPage()
   },
   tapTo4: function () {
     var that = this
     that.setData({
-      cardNum: 4,
-      displayOrderList: this.data.allOrderList // 显示所有订单
+      cardNum: 4
     })
-    // 在所有订单标签页，根据搜索状态更新显示
-    this.updateDisplayList()
+    // 在所有订单标签页，重置并加载分页
+    this.clearSearchState()
+    this.resetOrderPagination()
+    this.loadOrderPage()
   },
 
   // 更新显示列表（根据是否有搜索结果）
@@ -149,9 +159,103 @@ Page({
     this.setData({
       searchPhone: '',
       searchResult: [],
-      displayOrderList: this.data.orderList,
+      displayOrderList: [],
       showNoResult: false
     })
+  },
+
+  // 分页：重置当前标签页分页状态
+  resetOrderPagination: function() {
+    this.setData({
+      page: 0,
+      hasMore: true,
+      loadingMore: false
+    })
+    // 清空当前标签页对应的列表
+    switch (this.data.cardNum) {
+      case 1:
+        this.setData({ orderList: [], displayOrderList: [] })
+        break
+      case 2:
+        this.setData({ sendingList: [], displayOrderList: [] })
+        break
+      case 3:
+        this.setData({ finishedList: [], displayOrderList: [] })
+        break
+      case 4:
+        this.setData({ allOrderList: [], displayOrderList: [] })
+        break
+      default:
+        this.setData({ orderList: [], displayOrderList: [] })
+    }
+  },
+
+  // 分页：加载当前标签页的一页数据
+  loadOrderPage: function() {
+    if (this.data.loadingMore || !this.data.hasMore) return
+    this.setData({ loadingMore: true })
+
+    const page = this.data.page
+    const pageSize = this.data.pageSize
+    const card = this.data.cardNum
+
+    const appendAndUpdate = (listName, rows) => {
+      const oldList = this.data[listName] || []
+      const newList = oldList.concat(rows || [])
+      const hasMore = (rows || []).length >= pageSize
+      const nextPage = hasMore ? page + 1 : page
+
+      this.setData({
+        [listName]: newList,
+        displayOrderList: this.data.searchResult.length > 0 ? this.data.searchResult : newList,
+        page: nextPage,
+        hasMore: hasMore,
+        loadingMore: false
+      })
+    }
+
+    // 根据标签页选择不同查询条件
+    if (card === 1) {
+      // 待发货：已支付、未发货、未完成
+      app.getInfoWhereAndOrderPaged(
+        'order_master',
+        { paySuccess: true, sending: false, finished: false },
+        'orderTime', 'desc',
+        page, pageSize,
+        e => appendAndUpdate('orderList', e.data)
+      )
+    } else if (card === 2) {
+      // 配送中：已发货、未完成
+      app.getInfoWhereAndOrderPaged(
+        'order_master',
+        { sending: true, finished: false },
+        'orderTime', 'desc',
+        page, pageSize,
+        e => appendAndUpdate('sendingList', e.data)
+      )
+    } else if (card === 3) {
+      // 已完成
+      app.getInfoWhereAndOrderPaged(
+        'order_master',
+        { finished: true },
+        'orderTime', 'desc',
+        page, pageSize,
+        e => appendAndUpdate('finishedList', e.data)
+      )
+    } else {
+      // 所有订单
+      app.getInfoByOrderPaged(
+        'order_master', 'orderTime', 'desc',
+        page, pageSize,
+        e => appendAndUpdate('allOrderList', e.data)
+      )
+    }
+  },
+
+  // 刷新当前标签页（用于更新状态后重新拉第一页）
+  refreshCurrentTab: function() {
+    this.resetOrderPagination()
+    this.loadOrderPage()
   },
 
   // ----------------------!!!  搜索功能  !!!----------------------
@@ -317,7 +421,7 @@ Page({
       sending: true,      // 确保配送状态为true
       sendingTime: app.CurrentTime_show()
     }, e => {
-      that.getAllList()
+      that.refreshCurrentTab()
       wx.showToast({
         title: '【已发货】',
       })
@@ -332,7 +436,7 @@ Page({
       finished: true,     // 设置完成状态为true
       finishedTime: app.CurrentTime_show()
     }, e => {
-      that.getAllList()
+      that.refreshCurrentTab()
       wx.showToast({
         title: '【已送达】',
       })
@@ -2358,8 +2462,8 @@ Page({
     }, () => {
       console.log(`✅ 订单 ${orderId} 已自动发货`)
       
-      // 刷新订单列表
-      this.getAllList()
+      // 刷新当前标签页
+      this.refreshCurrentTab()
       
       // 显示提示（可选，避免过于频繁的提示）
       // wx.showToast({
@@ -2372,59 +2476,8 @@ Page({
 
   // 获取所有订单信息
   getAllList:function(){
-    var that = this
-    
-    // 获取所有订单数据
-    app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
-      console.log('获取所有订单数据:', e.data)
-      
-      // 存储所有订单
-      const allOrders = e.data || [];
-      
-      // 筛选待发货订单：已支付但未发货未完成的订单
-      const pendingOrders = allOrders.filter(order => {
-        return order.paySuccess === true && 
-               order.sending !== true && 
-               order.finished !== true;
-      });
-      
-      // 筛选配送中订单：已发货但未完成的订单
-      const shippingOrders = allOrders.filter(order => {
-        return order.sending === true && order.finished !== true;
-      });
-      
-      // 按发货时间排序（如果有的话），否则按订单时间排序
-      shippingOrders.sort((a, b) => {
-        const timeA = a.sendingTime || a.orderTime;
-        const timeB = b.sendingTime || b.orderTime;
-        return new Date(timeB) - new Date(timeA);
-      });
-      
-      // 筛选已完成订单：已完成的订单
-      const completedOrders = allOrders.filter(order => {
-        return order.finished === true;
-      });
-      
-      // 按完成时间排序（如果有的话），否则按订单时间排序
-      completedOrders.sort((a, b) => {
-        const timeA = a.finishedTime || a.orderTime;
-        const timeB = b.finishedTime || b.orderTime;
-        return new Date(timeB) - new Date(timeA);
-      });
-      
-      that.setData({
-        allOrderList: allOrders,        // 所有订单
-        orderList: pendingOrders,       // 待发货订单
-        sendingList: shippingOrders,    // 配送中订单
-        finishedList: completedOrders,  // 已完成订单
-        displayOrderList: pendingOrders // 默认显示待发货订单
-      })
-      
-      console.log('所有订单数量:', allOrders.length)
-      console.log('待发货订单:', pendingOrders.length)
-      console.log('配送中订单:', shippingOrders.length)
-      console.log('已完成订单:', completedOrders.length)
-    })
+    // 兼容旧调用：改为分页刷新当前标签页
+    this.refreshCurrentTab()
   },
 
   /**
@@ -2628,14 +2681,18 @@ Page({
    * 页面相关事件处理函数--监听用户下拉动作
    */
   onPullDownRefresh: function () {
-
+    this.resetOrderPagination()
+    this.loadOrderPage()
+    setTimeout(function () {
+      wx.stopPullDownRefresh()
+    }, 500)
   },
 
   /**
    * 页面上拉触底事件的处理函数
    */
   onReachBottom: function () {
-
+    this.loadOrderPage()
   },
 
   /**

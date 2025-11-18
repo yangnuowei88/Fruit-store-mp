@@ -606,6 +606,18 @@ App({
       .catch(console.error)
   },
 
+  // 分页：排序后取出数据（skip/limit）
+  getInfoByOrderPaged: function (setName, ruleItem, orderFuc, page = 0, pageSize = 20, callback) {
+    const db = wx.cloud.database()
+    db.collection(setName)
+      .orderBy(ruleItem, orderFuc)
+      .skip(page * pageSize)
+      .limit(pageSize)
+      .get()
+      .then(callback)
+      .catch(console.error)
+  },
+
   // 删除集合中的数据
   deleteInfoFromSet: function (setName,fruitId) {
     const db = wx.cloud.database()
@@ -621,12 +633,12 @@ App({
   },
 
   // 更新数据
-  updateInfo:function(setName,_id,updateInfoObj,callback){
+  updateInfo:function(setName,_id,updateInfoObj,callback,failCallback){
     const db = wx.cloud.database()
     db.collection(setName).doc(_id).update({
       data: updateInfoObj,
       success: callback,
-      fail: console.error
+      fail: failCallback || console.error
     })
   },
 
@@ -685,6 +697,39 @@ App({
       .where(ruleObj)
       .orderBy(ruleItem, orderFuc)
       .get()
+      .then(callback)
+      .catch(console.error)
+  }
+
+  ,
+  // 分页：带条件查询并排序（skip/limit）
+  getInfoWhereAndOrderPaged: function (setName, ruleObj, ruleItem, orderFuc, page = 0, pageSize = 20, callback) {
+    const db = wx.cloud.database()
+    db.collection(setName)
+      .where(ruleObj)
+      .orderBy(ruleItem, orderFuc)
+      .skip(page * pageSize)
+      .limit(pageSize)
+      .get()
+      .then(callback)
+      .catch(console.error)
+  },
+
+  // 统计集合总记录数
+  countCollection: function (setName, callback) {
+    const db = wx.cloud.database()
+    db.collection(setName)
+      .count()
+      .then(callback)
+      .catch(console.error)
+  },
+
+  // 条件计数
+  countInfoWhere: function (setName, ruleObj, callback) {
+    const db = wx.cloud.database()
+    db.collection(setName)
+      .where(ruleObj)
+      .count()
       .then(callback)
       .catch(console.error)
   }

@@ -15,6 +15,11 @@ Page({
     files: [],
     time:0,
     manageList:[], //管理页面信息列表
+    // 分页状态（管理列表）
+    page: 0,
+    pageSize: 20,
+    hasMore: true,
+    loadingMore: false,
 
     // 上传的信息
     fruitID:null, //水果编号
@@ -290,14 +295,36 @@ Page({
    * ----------------------!!!  生命周期函数--监听页面加载  !!!----------------------
    */
   getManageList:function(){
-    var that = this
-    app.getInfoByOrder('fruit-board', 'time', 'desc',
-      e => {
-        that.setData({
-          manageList: e.data
-        })
-      }
-    )
+    // 兼容旧方法，默认重置加载第一页
+    this.resetManagePagination()
+    this.loadManagePage()
+  },
+
+  // 重置管理列表分页
+  resetManagePagination: function() {
+    this.setData({
+      page: 0,
+      hasMore: true,
+      loadingMore: false,
+      manageList: []
+    })
+  },
+
+  // 加载管理列表下一页
+  loadManagePage: function() {
+    if (!this.data.hasMore || this.data.loadingMore) return
+    this.setData({ loadingMore: true })
+    const { page, pageSize } = this.data
+    app.getInfoByOrderPaged('fruit-board', 'time', 'desc', page, pageSize, e => {
+      const list = Array.isArray(e.data) ? e.data : []
+      const merged = (this.data.manageList || []).concat(list)
+      this.setData({
+        manageList: merged,
+        page: this.data.page + 1,
+        hasMore: list.length >= pageSize,
+        loadingMore: false
+      })
+    })
   },
 
   onLoad: function (options) {
@@ -315,6 +342,7 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow: function () {
+    // 默认进入管理页时加载第一页
     this.getManageList()
   },
 
@@ -346,7 +374,10 @@ Page({
    * 页面上拉触底事件的处理函数
    */
   onReachBottom: function () {
-
+    // 在管理页卡片（2 或 3）触底加载更多
+    if (this.data.cardNum === 2 || this.data.cardNum === 3) {
+      this.loadManagePage()
+    }
   },
 
   /**

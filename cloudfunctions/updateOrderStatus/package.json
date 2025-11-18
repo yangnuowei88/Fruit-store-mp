@@ -1,0 +1,9 @@
+{
+  "name": "updateOrderStatus",
+  "version": "1.0.0",
+  "description": "订单状态更新云函数",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

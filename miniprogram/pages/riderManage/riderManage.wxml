@@ -7,7 +7,7 @@
   <!-- 订单列表 -->
   <view class='theList'>
     <view class="weui-cells weui-cells_after-title">
-      <view wx:for="{{displayOrderList}}" wx:key="pay" class='listItem' wx:if="{{item.sending && !item.finished}}">
+      <view wx:for="{{displayOrderList}}" wx:key="_id" class='listItem' wx:if="{{item.sending && !item.finished}}">
         <view class='f_column'>
           <view>订单号：{{item.orderNumber || '无'}}</view>
           <view>姓名：{{item.name}}</view>
@@ -22,7 +22,7 @@
 
         <view class='Btns'>
           <view class='callBtn' bindtap='makePhoneCall' data-phone="{{item.phone}}">打电话</view>
-          <view class='upBtn' bindtap='sendingFruit' id="{{item._id}}">确认送达</view>
+          <view class='upBtn' bindtap='sendingFruit' id="{{item._id}}" data-id="{{item._id}}">确认送达</view>
         </view>
       </view>
     </view>

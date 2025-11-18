@@ -17,7 +17,12 @@ Page({
     activeTypeId: 0,
     isShow:true, 
     openid: '',   
-    offLine:null  //是否维护
+    offLine:null,  //是否维护
+    // 分页
+    page: 0,
+    pageSize: 20,
+    hasMore: true,
+    loadingMore: false
   },
 
   // 纯水果订单模拟
@@ -252,116 +257,82 @@ Page({
     getCurrentPages()["0"].setData({
       activeTypeId: parseInt(e.currentTarget.id)
     })
+    // 重置分页并加载第一页
+    this.resetPagination()
+    this.loadProductsPage()
+  },
+
+  // 重置分页状态
+  resetPagination: function() {
+    this.setData({
+      page: 0,
+      hasMore: true,
+      loadingMore: false,
+      fruitInfo: []
+    })
+  },
+
+  // 加载当前分类下一页数据
+  loadProductsPage: function() {
+    if (!this.data.hasMore || this.data.loadingMore) return
+    this.setData({ loadingMore: true })
+
     const db = wx.cloud.database()
     const _ = db.command
-    
-    switch (e.currentTarget.id) {
-      // 美味鲜果（排除盒饭）
-      case '0':
-        app.getInfoWhereAndOrder('fruit-board', {
+    const { activeTypeId, page, pageSize } = this.data
+
+    const handleResult = (e) => {
+      const list = Array.isArray(e.data) ? e.data : []
+      const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl)
+
+      const finalize = () => {
+        const merged = (this.data.fruitInfo || []).concat(list)
+        this.setData({
+          fruitInfo: merged,
+          page: this.data.page + 1,
+          hasMore: list.length >= pageSize,
+          loadingMore: false,
+          isShow: true
+        })
+        wx.hideLoading()
+      }
+
+      if (ids.length) {
+        wx.cloud.getTempFileURL({
+          fileList: ids,
+          success: res => {
+            const map = {}
+            ;(res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL })
+            list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl] })
+            finalize()
+          },
+          fail: err => {
+            console.error('图片URL转换失败:', err)
+            finalize()
+          }
+        })
+      } else {
+        finalize()
+      }
+    }
+
+    switch (String(activeTypeId)) {
+      case '0': // 美味鲜果（排除盒饭）
+        app.getInfoWhereAndOrderPaged('fruit-board', {
           myClass: _.or(_.neq(1), _.exists(false))
-        }, 'time', 'desc',
-          e => {
-            const list = Array.isArray(e.data) ? e.data : [];
-            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
-            if (ids.length) {
-              wx.cloud.getTempFileURL({
-                fileList: ids,
-                success: res => {
-                  const map = {};
-                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
-                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                },
-                fail: err => {
-                  console.error('分类0图片URL转换失败:', err);
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                }
-              });
-            } else {
-              getCurrentPages()["0"].setData({ fruitInfo: list });
-            }
-          }
-        )
-        break;
-      // 精品盒饭
-      case '1':
-        app.getInfoWhere('fruit-board', {myClass:1},
-          e => {
-            const list = Array.isArray(e.data) ? e.data : [];
-            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
-            if (ids.length) {
-              wx.cloud.getTempFileURL({
-                fileList: ids,
-                success: res => {
-                  const map = {};
-                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
-                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                },
-                fail: err => {
-                  console.error('分类1图片URL转换失败:', err);
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                }
-              });
-            } else {
-              getCurrentPages()["0"].setData({ fruitInfo: list });
-            }
-          }
-        )
-        break;
-      // 新鲜上架（显示所有商品）
-      case '2':
-        app.getInfoByOrder('fruit-board', 'time', 'desc',
-          e => {
-            const list = Array.isArray(e.data) ? e.data : [];
-            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
-            if (ids.length) {
-              wx.cloud.getTempFileURL({
-                fileList: ids,
-                success: res => {
-                  const map = {};
-                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
-                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                },
-                fail: err => {
-                  console.error('分类2图片URL转换失败:', err);
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                }
-              });
-            } else {
-              getCurrentPages()["0"].setData({ fruitInfo: list });
-            }
-          }
-        )
-        break;
-      // 店主推荐
-      case '3':
-        app.getInfoWhere('fruit-board', { recommend: '1' },
-          e => {
-            const list = Array.isArray(e.data) ? e.data : [];
-            const ids = list.filter(it => typeof it.imgUrl === 'string' && it.imgUrl.startsWith('cloud://')).map(it => it.imgUrl);
-            if (ids.length) {
-              wx.cloud.getTempFileURL({
-                fileList: ids,
-                success: res => {
-                  const map = {};
-                  (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
-                  list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                },
-                fail: err => {
-                  console.error('分类3图片URL转换失败:', err);
-                  getCurrentPages()["0"].setData({ fruitInfo: list });
-                }
-              });
-            } else {
-              getCurrentPages()["0"].setData({ fruitInfo: list });
-            }
-          }
-        )
-        break;
+        }, 'time', 'desc', page, pageSize, handleResult)
+        break
+      case '1': // 精品饭食（盒饭）
+        app.getInfoWhereAndOrderPaged('fruit-board', { myClass: 1 }, 'time', 'desc', page, pageSize, handleResult)
+        break
+      case '2': // 新鲜上架（全部）
+        app.getInfoByOrderPaged('fruit-board', 'time', 'desc', page, pageSize, handleResult)
+        break
+      case '3': // 店主推荐
+        app.getInfoWhereAndOrderPaged('fruit-board', { recommend: '1' }, 'time', 'desc', page, pageSize, handleResult)
+        break
+      default:
+        app.getInfoByOrderPaged('fruit-board', 'time', 'desc', page, pageSize, handleResult)
     }
   },
 
@@ -393,52 +364,10 @@ Page({
 
   onShow: function () {
     var that = this
-    const db = wx.cloud.database()
-    const _ = db.command
-    
-    // 水果信息（排除盒饭）
-    // app.getInfoFromSet('fruit-board', {},
-    //   e => {
-    //     // console.log(e.data)
-    //     getCurrentPages()["0"].setData({
-    //       fruitInfo: e.data,
-    //       isShow: true
-    //     })
-    //     wx.hideLoading()
-    //   }
-    // )
-    app.getInfoWhereAndOrder('fruit-board', {
-      myClass: _.or(_.neq(1), _.exists(false))
-    }, 'time', 'desc',
-      e => {
-        const list = Array.isArray(e.data) ? e.data : [];
-        const fileIds = [];
-        list.forEach(it => {
-          const url = it.imgUrl;
-          if (typeof url === 'string' && url.startsWith('cloud://')) fileIds.push(url);
-        });
-        if (fileIds.length) {
-          wx.cloud.getTempFileURL({
-            fileList: fileIds,
-            success: res => {
-              const map = {};
-              (res.fileList || []).forEach(r => { if (r && r.fileID && r.tempFileURL) map[r.fileID] = r.tempFileURL; });
-              list.forEach(it => { if (map[it.imgUrl]) it.imgUrl = map[it.imgUrl]; });
-              getCurrentPages()["0"].setData({ fruitInfo: list, isShow: true });
-              wx.hideLoading();
-            },
-            fail: err => {
-              console.error('首页图片临时URL获取失败:', err);
-              getCurrentPages()["0"].setData({ fruitInfo: list, isShow: true });
-              wx.hideLoading();
-            }
-          });
-        } else {
-          getCurrentPages()["0"].setData({ fruitInfo: list, isShow: true });
-          wx.hideLoading();
-        }
-      }
-    )
+    // 首页默认显示“美味鲜果”并分页加载
+    this.setData({ activeTypeId: 0 })
+    this.resetPagination()
+    this.loadProductsPage()
     // console.log(app.globalData.offLine)
     // 是否下线
     app.getInfoWhere('setting', { "option": "offLine" },
@@ -463,7 +392,8 @@ Page({
   },
 
   onReachBottom: function () {
-
+    // 触底加载下一页
+    this.loadProductsPage()
   },
 
   onShareAppMessage: function () {
