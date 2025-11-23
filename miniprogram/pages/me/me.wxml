@@ -118,4 +118,28 @@
             </view>
         </view>
     </view>
+
+    <!-- 客服联系方式 -->
+    <view class="contact-section">
+        <view class="section-title">📞 联系客服</view>
+        <view class="contact-cards">
+            <view class="contact-card boxlunch-card" bindtap="callPhone" data-phone="18223074709">
+                <view class="contact-icon">🍱</view>
+                <view class="contact-info">
+                    <view class="contact-label">盒饭客服</view>
+                    <view class="contact-phone">18223074709</view>
+                </view>
+                <view class="call-icon">📞</view>
+            </view>
+            <view class="contact-card fruit-card" bindtap="callPhone" data-phone="15320431989">
+                <view class="contact-icon">🍎</view>
+                <view class="contact-info">
+                    <view class="contact-label">水果客服</view>
+                    <view class="contact-phone">15320431989</view>
+                </view>
+                <view class="call-icon">📞</view>
+            </view>
+        </view>
+        <view class="contact-tips">点击卡片即可拨打电话</view>
+    </view>
 </view>

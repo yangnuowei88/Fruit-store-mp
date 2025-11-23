@@ -31,7 +31,7 @@
                 <textarea 
                     name="detail" 
                     value="{{address.detail}}" 
-                    placeholder="请输入详细收货地址，如：北京市朝阳区某某街道某某小区某栋某单元某室" 
+                    placeholder="请输入详细收货地址，如：重邮宿舍楼1号楼701" 
                     class="form-textarea {{validation.detailValid ? '' : 'error'}}"
                     bindinput="onDetailInput"
                 ></textarea>
@@ -43,7 +43,7 @@
                 <textarea 
                     name="message" 
                     value="{{address.message}}" 
-                    placeholder="配送备注（选填），如：请放在门口、联系电话等" 
+                    placeholder="配送备注（选填），如：请放在门口、不要辣" 
                     class="form-textarea {{validation.messageValid ? '' : 'error'}}"
                     bindinput="onMessageInput"
                 ></textarea>

@@ -480,6 +480,27 @@ Page({
         });
       }
     });
+  },
+
+  // 拨打客服电话
+  callPhone: function(e) {
+    const phone = e.currentTarget.dataset.phone;
+    console.log('📞 准备拨打客服电话:', phone);
+    
+    wx.makePhoneCall({
+      phoneNumber: phone,
+      success: function() {
+        console.log('✅ 拨打电话成功');
+      },
+      fail: function(err) {
+        console.error('❌ 拨打电话失败:', err);
+        wx.showToast({
+          title: '拨打电话失败',
+          icon: 'none',
+          duration: 2000
+        });
+      }
+    });
   }
 
 })
