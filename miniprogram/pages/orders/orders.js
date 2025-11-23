@@ -188,6 +188,8 @@ Page({
       tmp['paySuccess'] = false
       tmp['sending'] = false
       tmp['finished'] = false
+      tmp['printed'] = false
+      tmp['printTime'] = ''
 
       const order_master = tmp
 
@@ -351,6 +353,8 @@ Page({
     tmp['sending'] = false
     tmp['finished'] = false
     tmp['orderStatus'] = '待发货'  // 设置订单状态
+    tmp['printed'] = false
+    tmp['printTime'] = ''
 
     const order_master = tmp
 

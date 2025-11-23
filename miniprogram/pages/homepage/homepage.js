@@ -182,6 +182,7 @@ Page({
       sending: false,
       finished: false,
       printed: false,
+      printTime: '',
       time: new Date(),
       out_trade_no: 'MOCK_' + Date.now(),
       orderNumber: orderNumber,

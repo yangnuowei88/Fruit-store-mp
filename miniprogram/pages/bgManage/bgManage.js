@@ -47,9 +47,6 @@ Page({
     connectedDevice: null,
     isConnecting: false,
     showBluetoothModal: false,
-    // 模拟打印机相关
-    mockPrinterConnected: false,
-    mockPrinterDevice: null,
     // 新订单提醒相关
     lastOrderCount: 0,
     orderCheckInterval: null,
@@ -63,16 +60,19 @@ Page({
    * 生命周期函数--监听页面加载
    */
   onLoad: function (options) {
+    console.log('🚀 ===== bgManage页面加载 =====')
     // 初始化正在打印的订单ID集合
     this.printingOrders = new Set()
+    // 初始化蓝牙监听器回调引用（用于后续移除）
+    this.bluetoothStateChangeHandler = null
     // 默认加载当前标签页的第一页数据（替代原有一次性全量查询）
     this.resetOrderPagination()
     this.loadOrderPage()
     this.initBluetooth()
-    this.checkMockPrinterStatus()
     // 检查真实打印机连接状态
     this.checkDualPrinterStatus()
     this.startOrderMonitoring()
+    console.log('✅ bgManage页面加载完成')
   },
 
   // --------------------!!!  选项卡切换  !!!----------------------
@@ -402,8 +402,12 @@ Page({
             console.log('用户选择打印订单');
             that.smartPrintOrder(orderData);
           } else {
-            console.log('用户选择直接发货');
-            that.updateOrderToShipping(orderId);
+            // 禁止未打印的直接发货
+            console.log('未打印订单禁止直接发货');
+            wx.showToast({
+              title: '请先打印再发货',
+              icon: 'none'
+            });
           }
         },
         fail: (err) => {
@@ -416,12 +420,69 @@ Page({
   // 已发货-送达
   sendingFruit: function(e) {
     var that = this
-    console.log(e.currentTarget.id)
+    const orderId = e.currentTarget.id
+    console.log(orderId)
+
+    // 校验：只有 printed===true 才允许发货
+    const lists = [
+      that.data.orderList || [],
+      that.data.displayOrderList || [],
+      that.data.allOrderList || []
+    ]
+    const localOrder = lists.reduce((found, list) => found || list.find(o => o._id === orderId), null)
+    const localPrinted = localOrder ? localOrder.printed === true : null
+
+    if (localPrinted === false) {
+      wx.showToast({ title: '请先打印再发货', icon: 'none' })
+      return
+    }
+
+    if (localPrinted === null) {
+      const db = wx.cloud.database()
+      db.collection('order_master').doc(orderId).get().then(res => {
+        const doc = res && res.data
+        if (!doc || doc.printed !== true) {
+          wx.showToast({ title: '请先打印再发货', icon: 'none' })
+          return
+        }
+        // 已确认打印，继续发货更新
+        wx.showLoading({ title: '发货中...' })
+        wx.cloud.callFunction({
+          name: 'updateOrderStatus',
+          data: {
+            orderId,
+            updates: {
+              sending: true,
+              sendingTime: app.CurrentTime_show()
+            }
+          }
+        }).then(res2 => {
+          wx.hideLoading()
+          if (res2 && res2.result && res2.result.success && res2.result.stats && res2.result.stats.updated > 0) {
+            that.refreshCurrentTab()
+            wx.showToast({ title: '【已发货】' })
+          } else {
+            wx.showToast({ title: '云函数更新失败或无变化', icon: 'none' })
+            console.warn('发货状态更新失败或无变化:', res2)
+          }
+        }).catch(err2 => {
+          wx.hideLoading()
+          wx.showToast({ title: '发货失败', icon: 'none' })
+          console.error('云函数更新发货状态异常:', err2)
+        })
+      }).catch(err => {
+        wx.showToast({ title: '获取订单状态失败，请重试', icon: 'none' })
+        console.error('获取订单打印状态失败:', err)
+      })
+      return
+    }
+
+    // 本地已确认 printed===true，直接发货
     wx.showLoading({ title: '发货中...' })
     wx.cloud.callFunction({
       name: 'updateOrderStatus',
       data: {
-        orderId: e.currentTarget.id,
+        orderId,
         updates: {
           sending: true,
           sendingTime: app.CurrentTime_show()
@@ -511,8 +572,15 @@ Page({
   setupBluetoothConnectionListener() {
     const that = this;
     
-    wx.onBLEConnectionStateChange(function(res) {
-      console.log('蓝牙连接状态变化:', res);
+    // 如果已经设置过监听器，先移除旧的
+    if (that.bluetoothStateChangeHandler) {
+      console.log('🔄 移除旧的蓝牙状态监听器');
+      wx.offBLEConnectionStateChange(that.bluetoothStateChangeHandler);
+    }
+    
+    // 定义监听器回调函数
+    that.bluetoothStateChangeHandler = function(res) {
+      console.log('🔌 蓝牙连接状态变化:', res);
       
       // 检查是否是我们连接的设备
       const fruitDevice = that.data.fruitPrinter.connectedDevice;
@@ -522,6 +590,8 @@ Page({
         if (!res.connected) {
           console.log('🍎 水果打印机意外断开连接');
           that.handlePrinterDisconnected('fruit');
+        } else {
+          console.log('🍎 水果打印机已连接');
         }
       }
       
@@ -529,9 +599,15 @@ Page({
         if (!res.connected) {
           console.log('🍱 盒饭打印机意外断开连接');
           that.handlePrinterDisconnected('boxlunch');
+        } else {
+          console.log('🍱 盒饭打印机已连接');
         }
       }
-    });
+    };
+    
+    // 注册监听器
+    wx.onBLEConnectionStateChange(that.bluetoothStateChangeHandler);
+    console.log('✅ 蓝牙连接状态监听器已设置');
   },
 
   // 处理打印机意外断开连接
@@ -792,56 +868,10 @@ Page({
   },
 
   // 连接模拟打印机
-  connectMockPrinter() {
-    console.log('🖨️ 连接模拟打印机...');
-    
-    // 创建模拟打印机设备信息
-    const mockPrinterDevice = {
-      deviceId: 'MOCK_PRINTER_' + Date.now(),
-      name: '模拟热敏打印机',
-      serviceId: 'MOCK_SERVICE_ID',
-      characteristicId: 'MOCK_CHARACTERISTIC_ID',
-      connected: true,
-      mockDevice: true  // 标记为模拟设备
-    };
-
-    // 更新页面数据
-    this.setData({
-      mockPrinterConnected: true,
-      mockPrinterDevice: mockPrinterDevice
-    });
-
-    // 将模拟打印机信息保存到本地存储
-    wx.setStorageSync('printerCharacteristic', mockPrinterDevice);
-    
-    console.log('✅ 模拟打印机连接成功:', mockPrinterDevice);
-    
-    wx.showToast({
-      title: '模拟打印机已连接',
-      icon: 'success'
-    });
-  },
+  
 
   // 断开模拟打印机
-  disconnectMockPrinter() {
-    console.log('🖨️ 断开模拟打印机...');
-    
-    // 更新页面数据
-    this.setData({
-      mockPrinterConnected: false,
-      mockPrinterDevice: null
-    });
-
-    // 清除本地存储中的打印机信息
-    wx.removeStorageSync('printerCharacteristic');
-    
-    console.log('✅ 模拟打印机已断开');
-    
-    wx.showToast({
-      title: '模拟打印机已断开',
-      icon: 'success'
-    });
-  },
+  
 
   // 双打印机管理函数
   // 显示打印机类型选择弹窗
@@ -1179,9 +1209,20 @@ Page({
     const boxlunchItems = [];
     
     if (orderData.fruitList && Array.isArray(orderData.fruitList)) {
+      console.log(`🔎[打印调试] 订单 ${orderData._id} 商品列表长度:`, orderData.fruitList.length);
       orderData.fruitList.forEach(item => {
         // item格式: [商品名, 数量, 价格, 类型]
-        const productType = item[3] || 0; // 默认为水果
+        const rawType = item[3];
+        const typeNum = Number(rawType);
+        console.log(`🔎[打印调试] 订单 ${orderData._id} 商品类型字段:`, {
+          name: item[0], rawType,
+          rawTypeType: typeof rawType,
+          parsedNumber: typeNum,
+          usedType: (rawType === 0 || rawType === 1) ? rawType : (Number.isFinite(typeNum) ? typeNum : 0)
+        });
+        const productType = (rawType === 0 || rawType === 1)
+          ? rawType
+          : (Number.isFinite(typeNum) ? typeNum : 0); // 默认为水果，兼容字符串"0"/"1"
         if (productType === 0) {
           fruitItems.push(item);
         } else if (productType === 1) {
@@ -1193,6 +1234,10 @@ Page({
     // 判断订单类型
     const hasFruit = fruitItems.length > 0;
     const hasBoxlunch = boxlunchItems.length > 0;
+    console.log(`🔎[打印调试] 订单 ${orderData._id} 分组结果:`, {
+      fruitCount: fruitItems.length,
+      boxlunchCount: boxlunchItems.length
+    });
     
     if (hasFruit && hasBoxlunch) {
       return { type: 'mixed', fruitItems, boxlunchItems }; // 混合订单
@@ -1212,6 +1257,18 @@ Page({
     // 检查当前连接的打印机类型
     const fruitConnected = this.data.fruitPrinter.connectedDevice;
     const boxlunchConnected = this.data.boxlunchPrinter.connectedDevice;
+    console.log('🔌[打印调试] 打印机连接状态:', {
+      fruit: {
+        connected: !!fruitConnected,
+        characteristicReady: !!this.data.fruitPrinter.characteristic,
+        device: fruitConnected ? { name: fruitConnected.name || fruitConnected.deviceName, deviceId: fruitConnected.deviceId } : null
+      },
+      boxlunch: {
+        connected: !!boxlunchConnected,
+        characteristicReady: !!this.data.boxlunchPrinter.characteristic,
+        device: boxlunchConnected ? { name: boxlunchConnected.name || boxlunchConnected.deviceName, deviceId: boxlunchConnected.deviceId } : null
+      }
+    });
     
     if (!fruitConnected && !boxlunchConnected) {
       console.log('❌ 没有连接任何打印机');
@@ -1257,6 +1314,13 @@ Page({
   printWithSpecificPrinter(orderData, items, printerType) {
     const printerKey = printerType + 'Printer';
     const printer = this.data[printerKey];
+    console.log(`🔧[打印调试] 准备指定打印机打印`, {
+      orderId: orderData._id,
+      printerType,
+      itemsCount: items ? items.length : 0,
+      device: printer && printer.connectedDevice ? { name: printer.connectedDevice.name || printer.connectedDevice.deviceName, deviceId: printer.connectedDevice.deviceId } : null,
+      characteristicReady: !!(printer && printer.characteristic)
+    });
     
     if (!printer.connectedDevice) {
       const printerName = printerType === 'fruit' ? '水果打印机' : '盒饭打印机';
@@ -1290,6 +1354,12 @@ Page({
       console.log(`📄 准备使用${printerType === 'fruit' ? '水果' : '盒饭'}打印机打印:`, printContent);
       
       const buffer = this.stringToArrayBuffer(printContent);
+      console.log(`📦[打印调试] 订单 ${orderData._id} 打印数据长度: ${buffer.byteLength} 字节`);
+      console.log('📡[打印调试] BLE写入目标:', {
+        deviceId: printer.characteristic.deviceId,
+        serviceId: printer.characteristic.serviceId,
+        characteristicId: printer.characteristic.characteristicId
+      });
 
       // 发送到指定打印机
       this.sendDataInChunksWithCallback(buffer, printer.characteristic, () => {
@@ -1331,24 +1401,31 @@ Page({
     if (orderData.fruitList && Array.isArray(orderData.fruitList)) {
       orderData.fruitList.forEach(item => {
         // item格式: [商品名, 数量, 价格, 类型]
-        const productType = item[3] || 0; // 默认为水果
+        const rawType = item[3];
+        const typeNum = Number(rawType);
+        const productType = Number.isFinite(typeNum) ? typeNum : 0; // 默认为水果，兼容字符串
         if (productType === 0) {
           fruitItems.push(item);
         } else if (productType === 1) {
           boxlunchItems.push(item);
         }
       });
+      const typeSet = Array.from(new Set(orderData.fruitList.map(x => x[3])));
+      console.log(`🔎[打印调试] 订单 ${orderData._id} 原始类型字段集合:`, typeSet);
     }
 
     console.log('水果商品:', fruitItems);
     console.log('盒饭商品:', boxlunchItems);
+    console.log(`🔎[打印调试] 订单 ${orderData._id} 分类统计:`, { fruitCount: fruitItems.length, boxlunchCount: boxlunchItems.length });
 
     // 分别打印不同类型的商品
     if (fruitItems.length > 0) {
+      console.log(`🔧[打印调试] 订单 ${orderData._id} 将使用水果打印机打印 ${fruitItems.length} 项`);
       this.printCategoryOrder(orderData, fruitItems, 'fruit');
     }
     
     if (boxlunchItems.length > 0) {
+      console.log(`🔧[打印调试] 订单 ${orderData._id} 将使用盒饭打印机打印 ${boxlunchItems.length} 项`);
       this.printCategoryOrder(orderData, boxlunchItems, 'boxlunch');
     }
 
@@ -1364,8 +1441,18 @@ Page({
   printCategoryOrder(orderData, items, category) {
     const printerKey = category + 'Printer';
     const characteristic = this.data[printerKey].characteristic;
+    console.log(`🔧[打印调试] 分类打印准备`, {
+      orderId: orderData._id,
+      category,
+      itemsCount: items ? items.length : 0,
+      characteristicReady: !!characteristic,
+      device: this.data[printerKey] && this.data[printerKey].connectedDevice
+        ? { name: this.data[printerKey].connectedDevice.name || this.data[printerKey].connectedDevice.deviceName, deviceId: this.data[printerKey].connectedDevice.deviceId }
+        : null
+    });
     
     if (!characteristic) {
+      console.log(`❌[打印调试] ${category === 'fruit' ? '水果' : '盒饭'}打印机未连接或特征值不可用`);
       wx.showToast({
         title: `请先连接${category === 'fruit' ? '水果' : '盒饭'}打印机`,
         icon: 'none'
@@ -1385,6 +1472,12 @@ Page({
       console.log(`准备打印${category}内容:`, printContent);
       
       const buffer = this.stringToArrayBuffer(printContent);
+      console.log(`📦[打印调试] 订单 ${orderData._id} (${category}) 打印数据长度: ${buffer.byteLength} 字节`);
+      console.log('📡[打印调试] BLE写入目标(分类):', {
+        deviceId: characteristic.deviceId,
+        serviceId: characteristic.serviceId,
+        characteristicId: characteristic.characteristicId
+      });
 
       // 发送到对应的打印机
       this.sendDataInChunksWithCallback(buffer, characteristic, () => {
@@ -1493,16 +1586,7 @@ Page({
   },
 
   // 检查模拟打印机连接状态
-  checkMockPrinterStatus() {
-    const characteristic = wx.getStorageSync('printerCharacteristic');
-    if (characteristic && characteristic.mockDevice === true) {
-      console.log('🖨️ 检测到已连接的模拟打印机:', characteristic);
-      this.setData({
-        mockPrinterConnected: true,
-        mockPrinterDevice: characteristic
-      });
-    }
-  },
+  
 
   // 打印订单（原有函数，保持兼容性）
   printOrder(orderData) {
@@ -1530,24 +1614,30 @@ Page({
           icon: 'success'
         });
         
-        // 更新订单打印状态到数据库（云函数）
+        // 打印成功后一次性在云端同时标记：已打印 + 已发货
         wx.cloud.callFunction({
           name: 'updateOrderStatus',
           data: {
             orderId: orderData._id,
             updates: {
               printed: true,
-              printTime: app.CurrentTime_show()
+              printTime: app.CurrentTime_show(),
+              sending: true,
+              sendingTime: app.CurrentTime_show()
             }
           }
         }).then(res => {
           if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
-            console.log(`📝 订单 ${orderData._id} 打印状态已更新到数据库`);
+            console.log(`📝 订单 ${orderData._id} 打印+发货状态已更新到数据库`);
           } else {
-            console.warn('打印状态更新失败或无变化:', res);
+            console.warn('打印+发货状态更新失败或无变化:', res);
           }
+          // 刷新当前标签页
+          this.refreshCurrentTab();
         }).catch(err => {
-          console.error('云函数更新打印状态异常:', err);
+          console.error('云函数更新打印+发货状态异常:', err);
+          // 仍然尝试刷新
+          this.refreshCurrentTab();
         });
       }, (error) => {
         console.error(`❌ 订单 ${orderData._id} 打印失败:`, error);
@@ -1619,12 +1709,19 @@ Page({
     const data = new Uint8Array(buffer);
     const totalChunks = Math.ceil(data.length / chunkSize);
     let currentChunk = 0;
+    const startTime = Date.now();
 
     console.log(`开始分包发送，总长度: ${data.length}, 分包数: ${totalChunks}, 每包大小: ${chunkSize}`);
+    console.log('📡[打印调试] 分包写入目标:', {
+      deviceId: device && device.deviceId,
+      serviceId: device && device.serviceId,
+      characteristicId: device && device.characteristicId
+    });
 
     const sendNextChunk = () => {
       if (currentChunk >= totalChunks) {
-        console.log('所有数据包发送完成');
+        const duration = Date.now() - startTime;
+        console.log(`所有数据包发送完成，用时 ${duration} ms`);
         if (successCallback) successCallback();
         return;
       }
@@ -1675,8 +1772,8 @@ Page({
         title: '请先连接打印机',
         icon: 'none'
       });
-      // 打印机未连接时直接发货
-      this.updateOrderToShipping(orderData._id);
+      // 打印机未连接时不自动发货，避免“骑手能看到但未打印”场景
+      // 请在弹窗中选择“直接发货”或先连接打印机后再打印
       return;
     }
 
@@ -1705,8 +1802,7 @@ Page({
               icon: 'none',
               duration: 3000
             })
-            // 重连失败也要发货
-            this.updateOrderToShipping(orderData._id)
+            // 重连失败不自动发货，避免“未打印已发货”
           }
         })
       } else {
@@ -1752,27 +1848,30 @@ Page({
       });
       
       // 更新订单打印状态
+      // 打印成功后一次性在云端同时标记：已打印 + 已发货
       wx.cloud.callFunction({
         name: 'updateOrderStatus',
         data: {
           orderId: orderData._id,
           updates: {
             printed: true,
-            printTime: app.CurrentTime_show()
+            printTime: app.CurrentTime_show(),
+            sending: true,
+            sendingTime: app.CurrentTime_show()
           }
         }
       }).then(res => {
         if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
-          console.log(`📝 订单 ${orderData._id} 打印状态已更新`);
+          console.log(`📝 订单 ${orderData._id} 打印+发货状态已更新`);
         } else {
-          console.warn('打印状态更新失败或无变化:', res);
+          console.warn('打印+发货状态更新失败或无变化:', res);
         }
-        // 打印成功后自动发货
-        this.updateOrderToShipping(orderData._id);
+        // 刷新当前标签页
+        this.refreshCurrentTab();
       }).catch(err => {
-        console.error('云函数更新打印状态异常:', err);
-        // 即使更新打印状态失败，也尝试发货
-        this.updateOrderToShipping(orderData._id);
+        console.error('云函数更新打印+发货状态异常:', err);
+        // 仍然刷新试图反映任何可能的状态变化
+        this.refreshCurrentTab();
       });
     }, (err) => {
       console.error(`❌ 手动打印订单 ${orderData._id} 失败:`, err);
@@ -1787,8 +1886,7 @@ Page({
         title: '打印失败',
         icon: 'none'
       });
-      // 打印失败也要发货
-      this.updateOrderToShipping(orderData._id);
+      // 打印失败不自动发货，避免“骑手能看到但未打印”
     });
   },
 
@@ -1980,6 +2078,15 @@ Page({
   // 开始订单监听
   startOrderMonitoring() {
     const that = this;
+    
+    // 检查是否已经有订单监听定时器在运行
+    if (that.data.orderCheckInterval) {
+      console.log('⚠️ 订单监听定时器已存在，跳过重复启动');
+      return;
+    }
+    
+    console.log('🔔 启动订单监听，每30秒检查一次新订单');
+    
     // 每30秒检查一次新订单
     that.data.orderCheckInterval = setInterval(() => {
       that.checkNewOrders();
@@ -1987,11 +2094,15 @@ Page({
     
     // 初始化订单数量
     that.getInitialOrderCount();
+    
+    console.log('✅ 订单监听已启动，定时器ID:', that.data.orderCheckInterval);
   },
 
   // 获取初始订单数量
   getInitialOrderCount() {
     const that = this;
+    console.log('📊 获取初始订单数量...');
+    
     app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
       // 使用与检查新订单相同的过滤条件
       const paidOrders = e.data.filter(order => 
@@ -1999,37 +2110,79 @@ Page({
         !order.sending && 
         (!order.printed || order.printed !== true)
       );
+      
+      const orderIds = new Set(paidOrders.map(o => o._id));
+      
+      // 初始化订单ID集合
+      that.lastOrderIds = orderIds;
+      
       that.setData({
         lastOrderCount: paidOrders.length
       });
-      console.log(`初始订单数量: ${paidOrders.length}`);
+      
+      console.log(`✅ 初始订单数量: ${paidOrders.length}`);
+      console.log(`✅ 初始订单ID集合大小: ${orderIds.size}`);
+      if (paidOrders.length > 0) {
+        console.log(`📝 初始订单ID(最多5个):`, Array.from(orderIds).slice(0, 5));
+      }
     });
   },
 
   // 检查新订单
   checkNewOrders() {
     const that = this;
+    console.log('🔍 ===== 开始检查新订单 =====');
+    
     app.getInfoByOrder('order_master', 'orderTime', 'desc', e => {
-      // 过滤条件：已支付、未发货、未打印或打印失败的订单
+      // 过滤条件：已支付、未发货、未打印的订单
       const paidOrders = e.data.filter(order => 
         order.paySuccess && 
         !order.sending && 
         (!order.printed || order.printed !== true)
       );
-      const currentOrderCount = paidOrders.length;
       
-      if (currentOrderCount > that.data.lastOrderCount) {
-        // 有新订单
-        const newOrdersCount = currentOrderCount - that.data.lastOrderCount;
-        that.showNewOrderNotification(newOrdersCount, paidOrders[0]);
+      const currentOrderCount = paidOrders.length;
+      const currentOrderIds = new Set(paidOrders.map(o => o._id));
+      
+      console.log('🔔[打印调试] 当前可处理订单数量:', currentOrderCount);
+      console.log('🔔[打印调试] 上次记录的订单数量:', that.data.lastOrderCount);
+      console.log('🔔[打印调试] 可处理订单ID列表(最多10个):', Array.from(currentOrderIds).slice(0, 10));
+      
+      // 初始化时没有 lastOrderIds，不触发通知
+      if (!that.lastOrderIds) {
+        console.log('📌 初始化订单ID集合');
+        that.lastOrderIds = currentOrderIds;
+        that.setData({
+          lastOrderCount: currentOrderCount
+        });
+        return;
+      }
+      
+      // 找出新增的订单（当前ID集合中有，但上次没有）
+      const newOrderIds = Array.from(currentOrderIds).filter(id => !that.lastOrderIds.has(id));
+      
+      if (newOrderIds.length > 0) {
+        console.log('🆕[打印调试] 检测到 ' + newOrderIds.length + ' 个新订单:', newOrderIds);
         
-        // 更新订单数量
+        // 找到第一个新订单
+        const firstNewOrder = paidOrders.find(o => o._id === newOrderIds[0]);
+        that.showNewOrderNotification(newOrderIds.length, firstNewOrder);
+        
+        // 更新订单ID集合和数量
+        that.lastOrderIds = currentOrderIds;
         that.setData({
           lastOrderCount: currentOrderCount
         });
         
         // 刷新订单列表
         that.getAllList();
+      } else {
+        console.log('✅ 没有新订单');
+        // 仍然更新状态，以防订单被删除或状态变化
+        that.lastOrderIds = currentOrderIds;
+        that.setData({
+          lastOrderCount: currentOrderCount
+        });
       }
     });
   },
@@ -2080,29 +2233,43 @@ Page({
     if (this.data.autoPrintEnabled) {
       this.autoPrintOrder(order);
     } else {
-      // 如果不自动打印，直接发货
-      this.updateOrderToShipping(order._id);
+      // 自动打印被禁用时，不进行自动发货，等待人工打印后发货
+      console.log(`⚠️ 自动打印已禁用，跳过自动发货，等待手动打印`)
+      wx.showToast({
+        title: '自动打印已禁用，请手动打印后发货',
+        icon: 'none'
+      })
     }
   },
 
   // 停止订单监听
   stopOrderMonitoring() {
     if (this.data.orderCheckInterval) {
+      console.log('🛑 停止订单监听，清除定时器ID:', this.data.orderCheckInterval);
       clearInterval(this.data.orderCheckInterval);
       this.setData({
         orderCheckInterval: null
       });
+      console.log('✅ 订单监听已停止');
+    } else {
+      console.log('⚠️ 没有运行中的订单监听定时器');
     }
   },
 
   // 启动自动发货检查
   startAutoShipping() {
     if (!this.data.autoShippingEnabled) {
-      console.log('自动发货功能已禁用')
+      console.log('⚠️ 自动发货功能已禁用')
       return
     }
+    
+    // 检查是否已经有自动发货定时器在运行
+    if (this.data.autoShippingInterval) {
+      console.log('⚠️ 自动发货定时器已存在，跳过重复启动');
+      return;
+    }
 
-    console.log('启动自动发货检查...')
+    console.log('🚚 启动自动发货检查，每30秒检查一次')
     
     // 立即执行一次检查
     this.checkPendingOrders()
@@ -2115,16 +2282,21 @@ Page({
     this.setData({
       autoShippingInterval: interval
     })
+    
+    console.log('✅ 自动发货检查已启动，定时器ID:', interval);
   },
 
   // 停止自动发货检查
   stopAutoShipping() {
     if (this.data.autoShippingInterval) {
+      console.log('🛑 停止自动发货检查，清除定时器ID:', this.data.autoShippingInterval);
       clearInterval(this.data.autoShippingInterval)
       this.setData({
         autoShippingInterval: null
       })
-      console.log('已停止自动发货检查')
+      console.log('✅ 自动发货检查已停止')
+    } else {
+      console.log('⚠️ 没有运行中的自动发货定时器');
     }
   },
 
@@ -2268,19 +2440,31 @@ Page({
 
   // 检查蓝牙打印机是否已连接
   isBluetoothConnected() {
+    // 优先根据新的双打印机状态判断
+    const hasFruitPrinter = this.data.fruitPrinter
+      && this.data.fruitPrinter.connectedDevice
+      && this.data.fruitPrinter.characteristic
+
+    const hasBoxlunchPrinter = this.data.boxlunchPrinter
+      && this.data.boxlunchPrinter.connectedDevice
+      && this.data.boxlunchPrinter.characteristic
+
+    console.log('🔌[打印调试] 当前打印机连接检测:', {
+      fruitConnected: !!hasFruitPrinter,
+      boxlunchConnected: !!hasBoxlunchPrinter
+    })
+
+    if (hasFruitPrinter || hasBoxlunchPrinter) {
+      return true
+    }
+
+    // 兼容旧版单打印机存储逻辑
     const characteristic = wx.getStorageSync('printerCharacteristic')
     if (!characteristic) {
       return false
     }
-    
-    // 如果是模拟设备，直接返回连接状态
-    if (characteristic.mockDevice === true) {
-      console.log('🖨️ 检测到模拟打印机，返回连接状态: true')
-      return true
-    }
-    
     // 真实设备的连接检查
-    return characteristic && characteristic.deviceId
+    return !!(characteristic && characteristic.deviceId)
   },
 
   // 自动打印订单
@@ -2304,20 +2488,89 @@ Page({
       return
     }
 
-    // 使用智能打印模式
-    console.log('🖨️ 使用智能打印模式')
-    this.smartPrintOrder(order)
+    console.log('🖨️ 使用自动打印流程（executeAutoPrint）')
+    console.log('🔎[自动打印] 订单状态快照:', {
+      orderId: order._id,
+      paySuccess: order.paySuccess,
+      printed: order.printed,
+      sending: order.sending,
+      fruitListLen: Array.isArray(order.fruitList) ? order.fruitList.length : 0
+    })
+
+    // 优先使用双打印机的特征值
+    const fruitChar = this.data.fruitPrinter && this.data.fruitPrinter.characteristic
+    const boxChar = this.data.boxlunchPrinter && this.data.boxlunchPrinter.characteristic
+    let targetChar = null
+
+    if (fruitChar || boxChar) {
+      const orderTypeInfo = this.detectOrderType(order)
+      console.log('🔎[自动打印] 订单类型检测结果:', orderTypeInfo.type)
+
+      if (fruitChar && !boxChar) {
+        // 仅连接水果打印机：只自动打印水果/混合订单
+        if (orderTypeInfo.type === 'fruit' || orderTypeInfo.type === 'mixed') {
+          targetChar = fruitChar
+        } else {
+          console.log(`🔄 订单 ${order._id} 非水果订单，当前仅连接水果打印机，跳过自动打印`)
+          return
+        }
+      } else if (boxChar && !fruitChar) {
+        // 仅连接盒饭打印机：只自动打印盒饭/混合订单
+        if (orderTypeInfo.type === 'boxlunch' || orderTypeInfo.type === 'mixed') {
+          targetChar = boxChar
+        } else {
+          console.log(`🔄 订单 ${order._id} 非盒饭订单，当前仅连接盒饭打印机，跳过自动打印`)
+          return
+        }
+      } else if (fruitChar && boxChar) {
+        // 两台都连：水果订单走水果机，盒饭/混合订单走盒饭机
+        if (orderTypeInfo.type === 'fruit') {
+          targetChar = fruitChar
+        } else if (orderTypeInfo.type === 'boxlunch' || orderTypeInfo.type === 'mixed') {
+          targetChar = boxChar
+        } else {
+          console.log(`⚠️ 订单 ${order._id} 无有效商品，跳过自动打印`)
+          return
+        }
+      }
+    }
+
+    // 如果双打印机都未连接，则回退到旧的单打印机特征值
+    if (!targetChar) {
+      const oldChar = wx.getStorageSync('printerCharacteristic')
+      if (oldChar && oldChar.deviceId) {
+        console.log('🔁 使用旧版单打印机特征值进行自动打印')
+        targetChar = oldChar
+      }
+    }
+
+    if (!targetChar) {
+      console.log(`⚠️ 订单 ${order._id} 未找到可用打印机特征值，跳过自动打印`)
+      return
+    }
+
+    // 使用统一的自动打印流程（带打印锁和状态更新）
+    this.executeAutoPrint(order, targetChar)
   },
 
   // 执行自动打印操作
   executeAutoPrint(order, characteristic) {
     console.log(`🤖 ===== 开始执行自动打印 =====`);
     console.log(`📋 订单ID: ${order._id}`);
-    console.log(`🖨️ 打印机特征值: ${JSON.stringify(characteristic)}`);
+    console.log(`� 订单号: ${order.orderNumber || '无'}`);
+    console.log(`👤 客户: ${order.name} - ${order.phone}`);
+    console.log(`�️ 打印机特征值: ${JSON.stringify(characteristic)}`);
+    console.log(`🔍 当前打印锁集合大小(本地): ${this.printingOrders.size}`);
+    console.log(`🔍 当前打印锁集合大小(全局): ${app.globalData.printingOrders.size}`);
     
     // 检查是否正在打印
     if (this.printingOrders.has(order._id)) {
-      console.log(`⚠️ 订单 ${order._id} 正在打印中，跳过重复自动打印`);
+      console.log(`⚠️ 订单 ${order._id} 已在本地打印锁中，跳过重复自动打印`);
+      return;
+    }
+    
+    if (app.globalData.printingOrders.has(order._id)) {
+      console.log(`⚠️ 订单 ${order._id} 已在全局打印锁中，跳过重复自动打印`);
       return;
     }
 
@@ -2326,81 +2579,13 @@ Page({
       this.printingOrders.add(order._id);
       app.globalData.printingOrders.add(order._id);
       console.log(`🔒 订单 ${order._id} 已加入自动打印锁定`);
-
-      // 如果是模拟设备，执行模拟打印
-      if (characteristic.mockDevice === true) {
-        console.log(`🖨️ 执行模拟打印 - 订单 ${order._id}`);
-        console.log(`🎭 ===== 模拟打印内容 =====`);
-        console.log(`📋 订单ID: ${order._id}`);
-        console.log(`📄 订单号: ${order.orderNumber || '无'}`);
-        console.log(`🎯 订单场景: ${order.scenario || '普通订单'}`);
-        console.log(`👤 客户姓名: ${order.name}`);
-        console.log(`📞 联系电话: ${order.phone}`);
-        console.log(`🏫 学校名称: ${order.schoolName}`);
-        console.log(`📍 地址类型: ${order.addressItem}`);
-        console.log(`🏠 详细地址: ${order.detail}`);
-        console.log(`📍 完整收货地址: ${order.schoolName}/${order.addressItem}/${order.detail}`);
-        console.log(`💰 订单总价: ¥${order.total}`);
-        console.log(`💬 配送备注: ${order.message || '无'}`);
-        console.log(`⏰ 下单时间: ${order.orderTime}`);
-        console.log(`💳 支付时间: ${order.payTime || '未支付'}`);
-        console.log(`📦 支付状态: ${order.paySuccess ? '已支付' : '未支付'}`);
-        console.log(`🚚 发货状态: ${order.sending ? '已发货' : '待发货'}`);
-        console.log(`✅ 完成状态: ${order.finished ? '已完成' : '未完成'}`);
-        console.log(`🖨️ 打印状态: ${order.printed ? '已打印' : '未打印'}`);
-        console.log(`--------------------------------`);
-        if (order.fruitList && order.fruitList.length > 0) {
-          console.log(`🍎 订单商品清单:`);
-          let itemTotal = 0;
-          order.fruitList.forEach((fruit, index) => {
-            const itemSubtotal = fruit[1] * fruit[2];
-            itemTotal += itemSubtotal;
-            console.log(`   ${index + 1}. ${fruit[0]} × ${fruit[1]} = ¥${itemSubtotal.toFixed(2)}`);
-            console.log(`      单价: ¥${fruit[2]}/份`);
-          });
-          console.log(`   商品小计: ¥${itemTotal.toFixed(2)}`);
-        }
-        console.log(`--------------------------------`);
-        console.log(`💰 订单总计: ¥${order.total}`);
-        console.log(`🎭 ===== 模拟打印完成 =====`);
-        
-      // 模拟打印过程（1秒延迟）
-      setTimeout(() => {
-        console.log(`✅ 订单 ${order._id} 模拟打印成功`)
-        console.log(`🎉 ===== 自动打印（模拟）成功完成 =====`);
-          
-          // 从打印锁定集合中移除（本地和全局）
-          this.printingOrders.delete(order._id);
-          app.globalData.printingOrders.delete(order._id);
-          console.log(`🔓 订单 ${order._id} 已从模拟打印锁定中移除`);
-          
-        // 更新订单打印状态（云函数）
-        wx.cloud.callFunction({
-          name: 'updateOrderStatus',
-          data: {
-            orderId: order._id,
-            updates: {
-              printed: true,
-              printTime: app.CurrentTime_show()
-            }
-          }
-        }).then(res => {
-          if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
-            console.log(`📝 订单 ${order._id} 模拟打印状态已更新`)
-          } else {
-            console.warn('模拟打印状态更新失败或无变化:', res)
-          }
-          // 打印成功后自动发货
-          this.updateOrderToShipping(order._id)
-        }).catch(err => {
-          console.error('云函数更新模拟打印状态异常:', err)
-          // 即使更新失败也尝试发货
-          this.updateOrderToShipping(order._id)
-        })
-      }, 1000);
-        
-        return;
-      }
+      console.log(`🔒 更新后打印锁大小 - 本地: ${this.printingOrders.size}, 全局: ${app.globalData.printingOrders.size}`);
+      
+      // 检查蓝牙连接状态
+      console.log(`🔌 检查蓝牙连接状态...`);
+      console.log(`🔌 打印机设备ID: ${characteristic.deviceId}`);
+      console.log(`🔌 服务ID: ${characteristic.serviceId}`);
+      console.log(`🔌 特征值ID: ${characteristic.characteristicId}`);
 
       // 真实设备的打印流程
       console.log(`📄 正在格式化自动打印内容...`);
@@ -2413,79 +2598,88 @@ Page({
 
       // 使用分包发送提高兼容性
       console.log(`📡 开始发送自动打印数据到打印机...`);
-      this.sendDataInChunksWithCallback(buffer, characteristic, () => {
-        console.log(`✅ 订单 ${order._id} 自动打印成功`)
-        console.log(`🎉 ===== 自动打印成功完成 =====`);
+    this.sendDataInChunksWithCallback(buffer, characteristic, () => {
+      console.log(`✅ 订单 ${order._id} 自动打印数据发送成功`)
+      console.log(`🎉 ===== 自动打印成功完成 =====`);
         
         // 从打印锁定集合中移除（本地和全局）
         this.printingOrders.delete(order._id);
         app.globalData.printingOrders.delete(order._id);
         console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除`);
+        console.log(`🔓 移除后打印锁大小 - 本地: ${this.printingOrders.size}, 全局: ${app.globalData.printingOrders.size}`);
         
-        // 更新订单打印状态（云函数）
+        // 自动打印成功后一次性在云端同时标记：已打印 + 已发货
+        console.log(`📤 开始更新订单 ${order._id} 状态为：已打印 + 已发货`);
         wx.cloud.callFunction({
           name: 'updateOrderStatus',
           data: {
             orderId: order._id,
             updates: {
               printed: true,
-              printTime: app.CurrentTime_show()
+              printTime: app.CurrentTime_show(),
+              sending: true,
+              sendingTime: app.CurrentTime_show()
             }
           }
         }).then(res => {
           if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
-            console.log(`📝 订单 ${order._id} 打印状态已更新`)
+            console.log(`✅ 订单 ${order._id} 打印+发货状态已更新`)
+            console.log(`✅ 云函数更新结果:`, res.result)
           } else {
-            console.warn('自动打印状态更新失败或无变化:', res)
+            console.warn('⚠️ 自动打印+发货状态更新失败或无变化:', res)
           }
-          // 打印成功后自动发货
-          this.updateOrderToShipping(order._id)
+          // 刷新当前标签页
+          console.log(`🔄 刷新订单列表...`);
+          this.refreshCurrentTab()
         }).catch(err => {
-          console.error('云函数更新自动打印状态异常:', err)
-          // 即使更新失败也尝试发货
-          this.updateOrderToShipping(order._id)
+          console.error('❌ 云函数更新自动打印+发货状态异常:', err)
+          // 仍然尝试刷新
+          console.log(`🔄 尝试刷新订单列表...`);
+          this.refreshCurrentTab()
         })
       }, (err) => {
         console.error(`❌ 订单 ${order._id} 自动打印失败:`, err)
+        console.error(`❌ 错误详情:`, JSON.stringify(err));
         console.log(`💥 ===== 自动打印失败 =====`);
         
         // 从打印锁定集合中移除（本地和全局）
         this.printingOrders.delete(order._id);
         app.globalData.printingOrders.delete(order._id);
         console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除（失败）`);
+        console.log(`🔓 移除后打印锁大小 - 本地: ${this.printingOrders.size}, 全局: ${app.globalData.printingOrders.size}`);
         
-        // 打印失败也要发货，避免订单积压
-        this.updateOrderToShipping(order._id)
+        // 自动打印失败不自动发货，等待手动处理（打印或直接发货）
+        console.log(`⚠️ 订单 ${order._id} 自动打印失败，订单保持未发货状态，等待手动处理`);
       })
     } catch (error) {
-      console.error(`自动打印订单 ${order._id} 过程出错:`, error)
+      console.error(`❌ 自动打印订单 ${order._id} 过程出错:`, error)
+      console.error(`❌ 异常堆栈:`, error.stack || '无堆栈信息');
       console.log(`💥 ===== 自动打印出错 =====`);
       
       // 从打印锁定集合中移除（本地和全局）
       this.printingOrders.delete(order._id);
       app.globalData.printingOrders.delete(order._id);
       console.log(`🔓 订单 ${order._id} 已从自动打印锁定中移除（出错）`);
+      console.log(`🔓 移除后打印锁大小 - 本地: ${this.printingOrders.size}, 全局: ${app.globalData.printingOrders.size}`);
       
-      // 出错也要发货，避免订单积压
-      this.updateOrderToShipping(order._id)
+      // 不自动发货：保持未发货状态，等待人工检查后重试打印
+      console.log(`⚠️ 订单 ${order._id} 保持未发货状态，等待人工检查后重试`);
+      wx.showToast({
+        title: '自动打印失败，请检查打印机连接',
+        icon: 'none'
+      })
     }
   },
 
   // 检查蓝牙连接状态
   checkBluetoothConnection(characteristic, callback) {
     if (!characteristic || !characteristic.deviceId) {
+      console.log('🔍[打印调试] 检查蓝牙连接失败：无有效特征值或deviceId');
       callback(false)
       return
     }
-
-    // 如果是模拟设备，直接返回连接成功
-    if (characteristic.mockDevice === true) {
-      console.log('🖨️ 模拟打印机连接检查 - 返回连接成功')
-      callback(true)
-      return
-    }
-
     // 真实设备的蓝牙连接检查
+    console.log('🔍[打印调试] 开始检查蓝牙设备服务', { deviceId: characteristic.deviceId });
     wx.getBLEDeviceServices({
       deviceId: characteristic.deviceId,
       success: (res) => {
@@ -2502,6 +2696,7 @@ Page({
   // 尝试重新连接蓝牙
   attemptReconnectBluetooth(characteristic, callback) {
     if (!characteristic || !characteristic.deviceId) {
+      console.log('🔄[打印调试] 重连蓝牙失败：无有效特征值或deviceId');
       callback(false)
       return
     }
@@ -2538,7 +2733,60 @@ Page({
 
   // 更新订单为发货状态
   updateOrderToShipping(orderId) {
-    console.log(`🚚 更新订单 ${orderId} 为发货状态`)
+    console.log(`🚚 更新订单 ${orderId} 为发货状态（校验 printed）`)
+    // 从本地列表尝试获取订单信息
+    const lists = [
+      this.data.orderList || [],
+      this.data.displayOrderList || [],
+      this.data.allOrderList || []
+    ]
+    const localOrder = lists.reduce((found, list) => found || list.find(o => o._id === orderId), null)
+    const localPrinted = localOrder ? localOrder.printed === true : null
+
+    // 本地明确未打印，阻止发货
+    if (localPrinted === false) {
+      wx.showToast({ title: '请先打印再发货', icon: 'none' })
+      return
+    }
+
+    // 本地未知打印状态，查询数据库后再决定
+    if (localPrinted === null) {
+      const db = wx.cloud.database()
+      db.collection('order_master').doc(orderId).get().then(res => {
+        const doc = res && res.data
+        if (!doc || doc.printed !== true) {
+          wx.showToast({ title: '请先打印再发货', icon: 'none' })
+          return
+        }
+        // 已确认打印，执行发货更新
+        wx.cloud.callFunction({
+          name: 'updateOrderStatus',
+          data: {
+            orderId,
+            updates: {
+              sending: true,
+              sendingTime: app.CurrentTime_show()
+            }
+          }
+        }).then(res2 => {
+          if (res2 && res2.result && res2.result.success && res2.result.stats && res2.result.stats.updated > 0) {
+            console.log(`✅ 订单 ${orderId} 已自动发货`)
+          } else {
+            console.warn('自动发货更新失败或无变化:', res2)
+          }
+          this.refreshCurrentTab()
+        }).catch(err2 => {
+          console.error('云函数更新发货状态异常:', err2)
+          this.refreshCurrentTab()
+        })
+      }).catch(err => {
+        console.error('获取订单打印状态失败:', err)
+        wx.showToast({ title: '获取订单状态失败，请重试', icon: 'none' })
+      })
+      return
+    }
+
+    // 本地已确认 printed===true，直接执行发货更新
     wx.cloud.callFunction({
       name: 'updateOrderStatus',
       data: {
@@ -2554,11 +2802,9 @@ Page({
       } else {
         console.warn('自动发货更新失败或无变化:', res)
       }
-      // 刷新当前标签页
       this.refreshCurrentTab()
     }).catch(err => {
       console.error('云函数更新发货状态异常:', err)
-      // 仍然尝试刷新以反映任何可能的状态变化
       this.refreshCurrentTab()
     })
   },
@@ -2580,16 +2826,11 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow: function () {
-    // 清除模拟打印机存储（因为模拟打印机功能已隐藏）
-    const characteristic = wx.getStorageSync('printerCharacteristic')
-    if (characteristic && characteristic.mockDevice === true) {
-      console.log('🖨️ 清除模拟打印机存储')
-      wx.removeStorageSync('printerCharacteristic')
-    }
+    console.log('👀 ===== bgManage页面显示 =====');
     
     // 清理旧的单打印机存储数据，避免与双打印机逻辑冲突
     const oldCharacteristic = wx.getStorageSync('printerCharacteristic')
-    if (oldCharacteristic && !oldCharacteristic.mockDevice) {
+    if (oldCharacteristic) {
       console.log('🔄 检测到旧的打印机存储数据，正在迁移到双打印机格式')
       // 根据设备名称判断是水果打印机还是盒饭打印机
       const deviceName = oldCharacteristic.name || ''
@@ -2623,34 +2864,30 @@ Page({
     // 检查并显示打印机连接状态（只使用双打印机检查）
     this.checkDualPrinterStatus() // 检查双打印机状态
     
+    // 注意：startOrderMonitoring 和 startAutoShipping 内部已经有重复检查
+    // 所以即使多次调用 onShow 也不会创建多个定时器
     this.startOrderMonitoring()
     this.startAutoShipping() // 启动自动发货检查
     
     // 通知全局停止后台处理，页面接管
     app.globalData.backgroundOrderProcessing = false
-    console.log('📱 bgManage页面显示，接管订单处理')
+    console.log('📱 bgManage页面显示完成，接管订单处理')
+    console.log('🔔 当前订单监听定时器ID:', this.data.orderCheckInterval);
+    console.log('🚚 当前自动发货定时器ID:', this.data.autoShippingInterval);
   },
 
   // 检查打印机连接状态
   checkPrinterConnectionStatus() {
     const characteristic = wx.getStorageSync('printerCharacteristic')
     if (characteristic) {
-      if (characteristic.mockDevice === true) {
-        // 忽略模拟打印机连接状态，因为模拟打印机面板已隐藏
-        console.log('🖨️ 检测到模拟打印机连接，但已隐藏模拟打印机功能')
-        this.setData({
-          connectedDevice: null
-        })
-      } else {
-        // 真实打印机
-        this.setData({
-          connectedDevice: {
-            name: characteristic.name || '蓝牙打印机',
-            deviceId: characteristic.deviceId,
-            mockDevice: false
-          }
-        })
-      }
+      // 真实打印机
+      this.setData({
+        connectedDevice: {
+          name: characteristic.name || '蓝牙打印机',
+          deviceId: characteristic.deviceId,
+          mockDevice: false
+        }
+      })
     } else {
       this.setData({
         connectedDevice: null
@@ -2743,27 +2980,36 @@ Page({
    * 生命周期函数--监听页面隐藏
    */
   onHide: function () {
+    console.log('👋 ===== bgManage页面隐藏 =====');
     this.stopOrderMonitoring()
     this.stopAutoShipping()
     
     // 启用全局后台处理
     app.globalData.backgroundOrderProcessing = true
-    console.log('🔄 bgManage页面隐藏，启用全局后台处理')
+    console.log('✅ bgManage页面隐藏完成，启用全局后台处理')
   },
 
   /**
    * 生命周期函数--监听页面卸载
    */
   onUnload: function () {
+    console.log('💥 ===== bgManage页面卸载 =====');
     this.stopOrderMonitoring()
     this.stopAutoShipping()
     
-    // 移除蓝牙连接状态监听器
-    wx.offBLEConnectionStateChange()
+    // 正确移除蓝牙连接状态监听器（只移除我们设置的那个）
+    if (this.bluetoothStateChangeHandler) {
+      console.log('🔌 移除蓝牙连接状态监听器');
+      wx.offBLEConnectionStateChange(this.bluetoothStateChangeHandler);
+      this.bluetoothStateChangeHandler = null;
+      console.log('✅ 蓝牙监听器已移除');
+    } else {
+      console.log('⚠️ 没有蓝牙监听器需要移除');
+    }
     
     // 启用全局后台处理
     app.globalData.backgroundOrderProcessing = true
-    console.log('🔄 bgManage页面卸载，启用全局后台处理')
+    console.log('✅ bgManage页面卸载完成，启用全局后台处理')
   },
 
   /**

@@ -152,9 +152,9 @@ App({
       // 有打印机连接，先打印再发货
       this.autoPrintGlobalOrder(order)
     } else {
-      // 没有打印机，直接发货
-      console.log(`📦 订单 ${order._id} 无打印机连接，直接发货`)
-      this.updateGlobalOrderToShipping(order._id)
+      // 没有打印机，不允许直接发货，提示需先打印
+      console.log(`📦 订单 ${order._id} 无打印机连接，跳过发货，需先打印`)
+      wx.showToast({ title: '打印机未连接，请先打印再发货', icon: 'none' })
     }
   },
 
@@ -175,8 +175,8 @@ App({
 
     const characteristic = wx.getStorageSync('printerCharacteristic')
     if (!characteristic) {
-      console.log('打印机未连接，跳过打印')
-      this.updateGlobalOrderToShipping(order._id)
+      console.log('打印机未连接，跳过打印且不发货')
+      wx.showToast({ title: '打印机未连接，无法自动发货', icon: 'none' })
       return
     }
 
@@ -196,7 +196,8 @@ App({
             console.log('❌ 蓝牙重连失败，跳过打印')
             // 移除打印锁定
             this.globalData.printingOrders.delete(order._id)
-            this.updateGlobalOrderToShipping(order._id)
+            // 不进行发货，避免未打印即发货
+            wx.showToast({ title: '打印机重连失败，请手动处理', icon: 'none' })
           }
         })
       } else {
@@ -233,14 +234,26 @@ App({
         this.globalData.printingOrders.delete(order._id)
         console.log(`🔓 订单 ${order._id} 移除打印锁定`)
         
-        // 更新订单打印状态
-        this.updateInfo('order_master', order._id, {
-          printed: true,
-          printTime: this.CurrentTime_show()
-        }, () => {
-          console.log(`📝 订单 ${order._id} 打印状态已更新`)
-          // 打印成功后自动发货
-          this.updateGlobalOrderToShipping(order._id)
+        // 打印成功后一次性在云端同时标记：已打印 + 已发货
+        wx.cloud.callFunction({
+          name: 'updateOrderStatus',
+          data: {
+            orderId: order._id,
+            updates: {
+              printed: true,
+              printTime: this.CurrentTime_show(),
+              sending: true,
+              sendingTime: this.CurrentTime_show()
+            }
+          }
+        }).then(res => {
+          if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+            console.log(`📝 订单 ${order._id} 打印+发货状态已更新`)
+          } else {
+            console.warn('打印+发货状态更新失败或无变化:', res)
+          }
+        }).catch(err => {
+          console.error('云函数更新打印+发货状态异常:', err)
         })
       }, (err) => {
         console.error(`❌ 订单 ${order._id} 全局自动打印失败:`, err)
@@ -249,8 +262,8 @@ App({
         // 移除打印锁定
         this.globalData.printingOrders.delete(order._id)
         console.log(`🔓 订单 ${order._id} 打印失败，移除打印锁定`)
-        // 打印失败也要发货，避免订单积压
-        this.updateGlobalOrderToShipping(order._id)
+        // 不进行发货，避免未打印即发货
+        wx.showToast({ title: '自动打印失败，请检查打印机连接', icon: 'none' })
       })
     } catch (error) {
       console.error(`全局自动打印订单 ${order._id} 过程出错:`, error)
@@ -455,13 +468,25 @@ App({
 
   // 全局更新订单为发货状态
   updateGlobalOrderToShipping(orderId) {
-    console.log(`🚚 全局更新订单 ${orderId} 为发货状态`)
-    
-    this.updateInfo('order_master', orderId, {
-      sending: true,
-      sendingTime: this.CurrentTime_show()
-    }, () => {
-      console.log(`✅ 订单 ${orderId} 已自动发货`)
+    console.log(`🚚 全局更新订单 ${orderId} 为发货状态（校验 printed）`)
+    // 通过云函数更新，服务端会校验 printed===true
+    wx.cloud.callFunction({
+      name: 'updateOrderStatus',
+      data: {
+        orderId,
+        updates: {
+          sending: true,
+          sendingTime: this.CurrentTime_show()
+        }
+      }
+    }).then(res => {
+      if (res && res.result && res.result.success && res.result.stats && res.result.stats.updated > 0) {
+        console.log(`✅ 订单 ${orderId} 已自动发货`)
+      } else {
+        console.warn('自动发货更新失败或被服务器拒绝:', res)
+      }
+    }).catch(err => {
+      console.error('云函数更新发货状态异常:', err)
     })
   },
 

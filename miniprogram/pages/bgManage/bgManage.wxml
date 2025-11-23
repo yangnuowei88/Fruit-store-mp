@@ -20,27 +20,6 @@
       断开连接
     </button>
   </view>
-  
-  <!-- 模拟打印机控制 - 已隐藏用于测试真实打印机 -->
-  <view class='mock-printer-panel' style='display: none;'>
-    <view class='panel-divider'></view>
-    <view class='mock-printer-title'>
-      <text class='title-text'>🖨️ 模拟打印机</text>
-      <text class='title-desc'>用于测试打印功能</text>
-    </view>
-    <view class='mock-printer-controls'>
-      <button class='control-btn mock-connect-btn' bindtap='connectMockPrinter' wx:if='{{!mockPrinterConnected}}'>
-        连接模拟打印机
-      </button>
-      <button class='control-btn mock-disconnect-btn' bindtap='disconnectMockPrinter' wx:if='{{mockPrinterConnected}}'>
-        断开模拟打印机
-      </button>
-      <view class='mock-status' wx:if='{{mockPrinterConnected}}'>
-        <text class='mock-status-text'>✅ 模拟打印机已连接</text>
-        <text class='mock-device-name'>{{mockPrinterDevice.name}}</text>
-      </view>
-    </view>
-  </view>
 </view>
 
 <!-- 自动发货控制面板 -->
