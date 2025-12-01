@@ -105,7 +105,9 @@ Page({
         app.upToClound("imgSwiper", that.data.name + Math.random().toString(), 
         res.tempFilePaths["0"], tmpUrl => {
           // console.log(tmpUrl)
-          that.data.tmpUrlArr.push(tmpUrl)
+          that.setData({
+            tmpUrlArr: that.data.tmpUrlArr.concat([tmpUrl])
+          })
           // console.log(getCurrentPages())
         })
       }
@@ -124,11 +126,9 @@ Page({
 
   //水果详细信息
   getInfoText: function (e) {
-    var that = this
-    that.setData({
-
+    this.setData({
+      detail: e.detail.value
     })
-    this.data.detail = e.detail.value;
   },
 
   // 获取商品类型
